@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chateau Desserts</title>
+  <meta name="description" content="Brownies, cookies and drinks from Chateau Desserts. Local pre-orders in Surat, Gujarat.">
+  <style>
+    :root{--ink:#292321;--muted:#756b66;--paper:#fbf8f4;--accent:#6d1d25;--line:#e8dfd7;--white:#fff}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper)}a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit}button{cursor:pointer}
+    .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 5vw;background:rgba(251,248,244,.97);border-bottom:1px solid var(--line)}.brand{font-family:Georgia,serif;font-size:23px;font-weight:bold}.nav{display:flex;align-items:center;gap:22px;color:var(--muted);font-size:14px}.primary,.secondary,.tab,.qty button,.remove{border:0;padding:12px 17px;border-radius:3px}.primary{background:var(--accent);color:white}.secondary{background:#eee6df;color:var(--ink)}
+    .hero{min-height:490px;display:grid;place-items:center;text-align:center;padding:85px 20px;background:linear-gradient(120deg,#eee4da,#f9f5ef)}.eyebrow{color:var(--accent);text-transform:uppercase;letter-spacing:3px;font-size:11px;font-weight:bold}h1,h2,h3{font-family:Georgia,serif;font-weight:normal}h1{font-size:clamp(42px,7vw,76px);margin:18px 0}.hero p{max-width:570px;color:var(--muted);line-height:1.7;margin:0 auto 28px}.section{padding:68px 6vw;scroll-margin-top:76px}.section-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:24px}h2{font-size:38px;margin:8px 0}.muted{color:var(--muted)}
+    .category{margin-top:42px}.category h3{font-size:29px;margin:0 0 18px}.products{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.product{background:white;border:1px solid var(--line);display:flex;flex-direction:column}.product img{width:100%;height:220px;object-fit:cover;display:block}.product.no-image .product-info{padding-top:26px}.product-info{padding:18px;display:flex;flex-direction:column;flex:1}.product-info h4{font:normal 23px Georgia,serif;margin:0 0 9px}.product-info p{color:var(--muted);font-size:14px;line-height:1.5;min-height:40px;margin:0}.product-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:18px}.price{font-weight:bold}.small-note{font-size:12px;color:var(--muted);margin-top:10px}.empty{padding:32px;text-align:center;border:1px dashed var(--line);color:var(--muted);background:white}
+    .about-grid{display:grid;grid-template-columns:1fr 1fr;gap:46px;align-items:center}.about-panel{min-height:270px;background:#eee4da;display:grid;place-items:center;font:28px Georgia,serif;color:#8b7768}.about-copy{color:var(--muted);line-height:1.8}.contact{background:#f1eae3}.contact-details{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:24px}.contact-card{background:white;border:1px solid var(--line);padding:20px}.contact-card strong{display:block;margin-bottom:9px}.contact-card p{margin:0;color:var(--muted);line-height:1.5;overflow-wrap:anywhere}footer{padding:32px 6vw;background:#2e2623;color:#f8f1ea}footer p{color:#c9bbb0;margin-bottom:0}
+    .cart-fab{position:fixed;right:22px;bottom:22px;z-index:20;box-shadow:0 5px 22px #0002}.overlay{display:none;position:fixed;inset:0;background:#0007;z-index:30;justify-content:flex-end}.overlay.show{display:flex}.drawer{background:var(--paper);width:min(500px,100%);height:100%;overflow:auto;padding:24px}.drawer-head{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:transparent;font-size:25px}.cart-line{display:flex;justify-content:space-between;gap:14px;padding:15px 0;border-bottom:1px solid var(--line)}.qty{display:flex;align-items:center;gap:8px;margin-top:8px}.qty button{border:1px solid var(--line);background:white;width:28px;height:28px;padding:0}.remove{background:#f6e5e3;color:#8a2525;padding:7px 10px}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:bold;padding:20px 0}label{display:block;font-size:13px;font-weight:bold;margin:14px 0 6px}input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);background:white;border-radius:2px}textarea{min-height:82px;resize:vertical}.form-note{font-size:12px;color:var(--muted);line-height:1.5}.full{width:100%;margin-top:12px}.message{font-size:13px;line-height:1.5;margin-top:12px;color:var(--accent)}
+    @media(max-width:800px){.nav{gap:12px}.nav a:not(.cart-link){display:none}.products{grid-template-columns:repeat(2,minmax(0,1fr))}.about-grid{grid-template-columns:1fr}.contact-details{grid-template-columns:1fr}}@media(max-width:520px){.products{grid-template-columns:1fr}.section{padding:50px 5vw}.brand{font-size:19px}.product img{height:230px}}
+  </style>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="#home">Chateau Desserts</a><nav class="nav"><a href="#menu">Menu</a><a href="#about">About Us</a><a href="#contact">Contact Us</a><button class="primary cart-link" onclick="openCart()">Cart (<span id="cartCount">0</span>)</button></nav></header>
+<main>
+  <section class="hero" id="home"><div><div class="eyebrow">Small batch desserts made to order</div><h1>A little sweetness,<br>made special.</h1><p>Thoughtfully made brownies, cookies and desserts, prepared fresh for moments worth celebrating. Pre-orders for local delivery in Surat.</p><a class="primary" href="#menu" style="display:inline-block">Explore the menu</a></div></section>
+  <section class="section" id="menu"><div class="section-head"><div><div class="eyebrow">The menu</div><h2>Find your favourite.</h2><div class="muted">Every order is prepared on a pre-order basis.</div></div></div><div id="menuContent"><div class="empty">Loading the menu...</div></div></section>
+  <section class="section" id="about"><div class="about-grid"><div class="about-panel">Made with care.</div><div><div class="eyebrow">About us</div><h2>Good desserts take time.</h2><p class="about-copy">At Chateau Desserts, every batch is made with care, quality ingredients and attention to detail. Our menu is thoughtfully curated, and everything is prepared fresh on a pre-order basis.</p><p class="about-copy">We currently serve customers in Surat, Gujarat. Place your order in advance and choose a delivery date and time slot that works for you.</p></div></div></section>
+  <section class="section contact" id="contact"><div class="eyebrow">Contact us</div><h2>We would love to hear from you.</h2><p class="muted">For orders and enquiries, contact Chateau Desserts.</p><div class="contact-details"><div class="contact-card"><strong>Phone and WhatsApp</strong><p><a href="https://wa.me/918980595645" target="_blank" rel="noopener">+91 89805 95645</a></p></div><div class="contact-card"><strong>Instagram</strong><p><a href="https://www.instagram.com/chateau.desserts/" target="_blank" rel="noopener">@chateau.desserts</a></p></div><div class="contact-card"><strong>Location</strong><p>Surat, Gujarat</p></div></div></section>
+</main>
+<footer><strong>Chateau Desserts</strong><p>Small batch desserts, made to order. Surat, Gujarat.</p></footer>
+<button class="primary cart-fab" onclick="openCart()">View cart - INR <span id="fabTotal">0</span></button>
+<div class="overlay" id="cartOverlay" onclick="if(event.target===this)closeCart()"><aside class="drawer"><div class="drawer-head"><h2>Your cart</h2><button class="close" onclick="closeCart()">X</button></div><div id="cartItems"></div><div class="total"><span>Total</span><span>INR <span id="cartTotal">0</span></span></div><h3>Delivery details</h3><p class="form-note">We deliver locally in Surat. Orders are pre-orders. The earliest available date is tomorrow.</p><label for="customerName">Your name</label><input id="customerName" autocomplete="name" placeholder="Full name"><label for="customerPhone">Phone number</label><input id="customerPhone" type="tel" autocomplete="tel" placeholder="10 digit mobile number"><label for="customerAddress">Delivery address</label><textarea id="customerAddress" autocomplete="street-address" placeholder="House or flat, street, area, city, PIN code"></textarea><label for="deliveryDate">Delivery date</label><input id="deliveryDate" type="date"><label for="timeSlot">Delivery time slot</label><select id="timeSlot"><option value="">Choose a time slot</option><option>12:00 PM to 2:00 PM</option><option>2:00 PM to 4:00 PM</option><option>4:00 PM to 6:00 PM</option></select><p class="form-note">Minimum order quantity is 4 pieces per brownie item and 2 pieces per cookie item.</p><button class="primary full" id="checkoutButton" onclick="checkout()">Continue to WhatsApp</button><p class="message" id="checkoutMessage" aria-live="polite"></p></aside></div>
+<script>
+  const API = "/.netlify/functions/api";
+  const WA_NUMBER = "918980595645";
+  let products = [], cart = {};
+  const money = value => Number(value || 0).toLocaleString("en-IN");
+  const minQty = product => product.category === "Brownies" ? 4 : product.category === "Cookies" ? 2 : 1;
+  const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+  async function loadProducts(){
+    const target=document.getElementById("menuContent");
+    try{const response=await fetch(`${API}?action=products`);const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not load the menu.");products=data.products||[];renderMenu();}
+    catch(error){target.innerHTML=`<div class="empty">The menu could not be loaded. Please refresh the page. ${escapeHtml(error.message)}</div>`;}
+  }
+  function renderMenu(){
+    const categories=["Brownies","Cookies","Drinks","Other Desserts"];
+    const visible=categories.map(category=>({category,items:products.filter(product=>product.category===category)})).filter(group=>group.items.length);
+    const target=document.getElementById("menuContent");
+    if(!visible.length){target.innerHTML='<div class="empty">The menu will be available soon.</div>';return;}
+    target.innerHTML=visible.map(group=>`<section class="category"><h3>${group.category}</h3><div class="products">${group.items.map(productCard).join("")}</div></section>`).join("");
+  }
+  function productCard(product){
+    const image=product.imageUrl?`<img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy">`:"";
+    return `<article class="product ${image?"":"no-image"}">${image}<div class="product-info"><h4>${escapeHtml(product.name)}</h4><p>${escapeHtml(product.description||"")}</p><div class="product-bottom"><span class="price">INR ${money(product.price)}</span><button class="primary" onclick="addToCart('${escapeHtml(product.id)}')">Add to cart</button></div><div class="small-note">Minimum ${minQty(product)} ${minQty(product)===1?"piece":"pieces"} per item</div></div></article>`;
+  }
+  function addToCart(id){const product=products.find(item=>item.id===id);if(!product)return;if(!cart[id])cart[id]={...product,quantity:0};cart[id].quantity+=minQty(product);renderCart();}
+  function changeQty(id,delta){const item=cart[id];if(!item)return;const next=item.quantity+delta;if(next<minQty(item)){delete cart[id];}else{item.quantity=next;}renderCart();}
+  function removeItem(id){delete cart[id];renderCart();}
+  function subtotal(){return Object.values(cart).reduce((sum,item)=>sum+item.price*item.quantity,0);}
+  function renderCart(){const items=Object.values(cart);document.getElementById("cartCount").textContent=items.reduce((sum,item)=>sum+item.quantity,0);document.getElementById("fabTotal").textContent=money(subtotal());document.getElementById("cartTotal").textContent=money(subtotal());document.getElementById("cartItems").innerHTML=items.length?items.map(item=>`<div class="cart-line"><div><strong>${escapeHtml(item.name)}</strong><div class="form-note">INR ${money(item.price)} each. Minimum ${minQty(item)}.</div><div class="qty"><button onclick="changeQty('${escapeHtml(item.id)}',-1)">-</button><span>${item.quantity}</span><button onclick="changeQty('${escapeHtml(item.id)}',1)">+</button><button class="remove" onclick="removeItem('${escapeHtml(item.id)}')">Remove</button></div></div><strong>INR ${money(item.price*item.quantity)}</strong></div>`).join(""):'<div class="empty">Your cart is empty.</div>';}
+  function openCart(){document.getElementById("cartOverlay").classList.add("show");}
+  function closeCart(){document.getElementById("cartOverlay").classList.remove("show");}
+  function setDateMinimum(){const date=new Date();date.setDate(date.getDate()+1);const local=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,10);document.getElementById("deliveryDate").min=local;}
+  async function checkout(){
+    const button=document.getElementById("checkoutButton"),message=document.getElementById("checkoutMessage");
+    const items=Object.values(cart);if(!items.length){message.textContent="Please add products to your cart first.";return;}
+    const order={customerName:document.getElementById("customerName").value.trim(),phone:document.getElementById("customerPhone").value.trim(),address:document.getElementById("customerAddress").value.trim(),deliveryDate:document.getElementById("deliveryDate").value,timeSlot:document.getElementById("timeSlot").value,items:items.map(item=>({id:item.id,quantity:item.quantity}))};
+    if(!order.customerName||!order.phone||!order.address||!order.deliveryDate||!order.timeSlot){message.textContent="Please complete all delivery details.";return;}
+    const date=new Date();date.setHours(0,0,0,0);const chosen=new Date(order.deliveryDate+"T00:00:00");if(Number.isNaN(chosen.getTime())||chosen<=date){message.textContent="Please choose a delivery date from tomorrow onwards.";return;}
+    for(const item of items){if(item.quantity<minQty(item)){message.textContent=`${item.name} requires at least ${minQty(item)} pieces.`;return;}}
+    button.disabled=true;button.textContent="Saving order...";message.textContent="Your order is being recorded.";
+    const whatsappWindow=window.open("about:blank","_blank");
+    try{
+      const response=await fetch(`${API}?action=order`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(order)});const result=await response.json();if(!response.ok)throw new Error(result.error||"Could not save this order.");
+      const orderLines=result.items.map(item=>`${item.name} - ${item.quantity} x INR ${money(item.price)} = INR ${money(item.lineTotal)}`).join("\n");
+      const text=`Hello Chateau Desserts. I would like to place a pre-order.\n\nORDER SUMMARY\n${orderLines}\n\nTotal: INR ${money(result.subtotal)}\nOrder reference: ${result.orderId}\n\nCUSTOMER DETAILS\nName: ${order.customerName}\nPhone: ${order.phone}\nAddress: ${order.address}\nDelivery date: ${order.deliveryDate}\nTime slot: ${order.timeSlot}\n\nPlease confirm availability and my order. Thank you.`;
+      const waUrl=`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
+      if(whatsappWindow){whatsappWindow.location.href=waUrl;}else{window.location.href=waUrl;}
+      message.textContent=`Order ${result.orderId} has been saved. Please press Send in WhatsApp to submit it.`;cart={};renderCart();
+    }catch(error){if(whatsappWindow)whatsappWindow.close();message.textContent=error.message;}
+    finally{button.disabled=false;button.textContent="Continue to WhatsApp";}
+  }
+  setDateMinimum();renderCart();loadProducts();
+</script>
+</body>
+</html>
