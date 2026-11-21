@@ -63,10 +63,12 @@
     <!-- 4. ADMIN LOGIN -->
     <section class="panel" id="loginPanel">
       <h2>Admin login</h2>
-      <label for="password">Password</label>
-      <input type="password" id="password" autocomplete="current-password">
-      <button class="primary full" onclick="login()">Log in</button>
-      <p id="loginMessage" class="note" aria-live="polite"></p>
+      <form id="loginForm" onsubmit="event.preventDefault(); login();">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+        <button type="submit" class="primary full">Log in</button>
+        <p id="loginMessage" class="note" aria-live="polite"></p>
+      </form>
     </section>
 
     <!-- 5. ADMIN DASHBOARD -->
@@ -80,6 +82,7 @@
 
       <!-- 6. ADD AND EDIT ITEMS -->
       <section class="panel" id="itemsView">
+        <form id="itemForm" onsubmit="event.preventDefault(); saveItem();">
         <h2 id="itemFormTitle">Add item</h2>
         <p class="note">Each item has its own complete selling price. For Brownies and Cookies, these items appear as the flavour choices for each piece in a box. For individual menu types, customers add the item directly to their cart.</p>
         <input type="hidden" id="itemId">
@@ -108,16 +111,18 @@
         <textarea id="itemDescription" placeholder="Write a short item description"></textarea>
         <label class="checkbox-line"><input type="checkbox" id="itemActive" checked> Show this item on the website</label>
         <div class="form-actions">
-          <button class="primary" onclick="saveItem()">Save item</button>
-          <button class="secondary" onclick="clearItemForm()">Clear form</button>
+          <button type="submit" class="primary">Save item</button>
+          <button type="button" class="secondary" onclick="clearItemForm()">Clear form</button>
         </div>
         <p id="itemMessage" class="note" aria-live="polite"></p>
+        </form>
         <h2 style="margin-top:30px;">Current items</h2>
         <div id="itemList"></div>
       </section>
 
       <!-- 7. ADD AND EDIT DESSERT TYPES -->
       <section class="panel hidden" id="typesView">
+        <form id="typeForm" onsubmit="event.preventDefault(); saveDessertType();">
         <h2 id="typeFormTitle">Add dessert type</h2>
         <p class="note">A dessert type is a main menu section such as Brownies, Cookies, Drinks or Cheesecakes. Items can also be added as standalone products without a dessert type.</p>
         <input type="hidden" id="dessertTypeId">
@@ -141,12 +146,19 @@
         </div>
         <label class="checkbox-line"><input type="checkbox" id="typeActive" checked> Show this dessert type on the website</label>
         <div class="form-actions">
-          <button class="primary" onclick="saveDessertType()">Save dessert type</button>
-          <button class="secondary" onclick="clearTypeForm()">Clear form</button>
+          <button type="submit" class="primary">Save dessert type</button>
+          <button type="button" class="secondary" onclick="clearTypeForm()">Clear form</button>
         </div>
         <p id="typeMessage" class="note" aria-live="polite"></p>
+        </form>
         <h2 style="margin-top:30px;">Current dessert types</h2>
         <div id="typeList"></div>
+        <div class="panel" style="margin-top:28px;">
+          <h2>Menu section order</h2>
+          <p class="note">Use the arrows to decide the order in which menu sections appear on the customer website. Standalone Items can also be moved.</p>
+          <div id="menuOrderList"></div>
+          <p id="menuOrderMessage" class="note" aria-live="polite"></p>
+        </div>
       </section>
 
       <!-- 8. CUSTOMER ORDERS -->
@@ -171,6 +183,7 @@
     let adminPassword = "";
     let dessertTypes = [];
     let items = [];
+    let menuOrder = [];
     let selectedImage = null;
 
     function element(id) { return document.getElementById(id); }
@@ -230,6 +243,7 @@
       adminPassword = "";
       dessertTypes = [];
       items = [];
+      menuOrder = [];
       selectedImage = null;
       element("dashboard").classList.add("hidden");
       element("loginPanel").classList.remove("hidden");
@@ -256,9 +270,11 @@
       const result = await callApi("catalogue");
       dessertTypes = result.dessertTypes || [];
       items = result.items || [];
+      menuOrder = result.menuOrder || [];
       populateDessertTypeDropdown();
       renderItems();
       renderDessertTypes();
+      renderMenuOrder();
     }
 
     function populateDessertTypeDropdown(selectedId = "") {
@@ -404,6 +420,44 @@
           <div class="row-actions"><button class="secondary" onclick="editDessertType('${escapeHtml(type.id)}')">Edit</button><button class="danger" onclick="deleteDessertType('${escapeHtml(type.id)}')">Delete</button></div>
         </div>`;
       }).join("");
+    }
+
+    function renderMenuOrder() {
+      const target = element("menuOrderList");
+      const validOrder = menuOrder.filter(id => id === "__standalone__" || dessertTypes.some(type => type.id === id));
+      const normalized = [...validOrder];
+      for (const type of dessertTypes) if (!normalized.includes(type.id)) normalized.push(type.id);
+      if (!normalized.includes("__standalone__")) normalized.push("__standalone__");
+      menuOrder = normalized;
+      if (!menuOrder.length) {
+        target.innerHTML = '<p class="note">Add a dessert type to arrange your menu.</p>';
+        return;
+      }
+      target.innerHTML = menuOrder.map((id, index) => {
+        const label = id === "__standalone__" ? "Standalone Items" : (dessertTypes.find(type => type.id === id)?.name || "Menu section");
+        return `<div class="row">
+          <div><strong>${index + 1}. ${escapeHtml(label)}</strong><div class="note">Customer website display position</div></div>
+          <div class="row-actions">
+            <button type="button" class="secondary" onclick="moveMenuSection(${index}, -1)" ${index === 0 ? "disabled" : ""} aria-label="Move ${escapeHtml(label)} up">Move up</button>
+            <button type="button" class="secondary" onclick="moveMenuSection(${index}, 1)" ${index === menuOrder.length - 1 ? "disabled" : ""} aria-label="Move ${escapeHtml(label)} down">Move down</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    async function moveMenuSection(index, direction) {
+      const next = [...menuOrder];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= next.length) return;
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      try {
+        const result = await callApi("menu-order", { method: "POST", body: { menuOrder: next } });
+        menuOrder = result.menuOrder || next;
+        renderMenuOrder();
+        showMessage("menuOrderMessage", "Menu order saved. The customer website will show this order.", "success");
+      } catch (error) {
+        showMessage("menuOrderMessage", error.message, "error");
+      }
     }
 
     function editDessertType(typeId) {
