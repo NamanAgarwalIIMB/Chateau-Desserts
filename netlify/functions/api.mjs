@@ -7,7 +7,7 @@
 //
 // DATA MODEL
 // - DessertTypes: the menu sections created by the owner (Brownies, Cookies,
-//   Drinks, Other Desserts, or any new section added in Admin).
+//   Drinks, or any new section added in Admin. Standalone items have no type).
 // - Items: products/flavours that belong to a dessert type. Every item has
 //   its own full price. There is no base price or extra-charge calculation.
 // - Orders: one row per distinct item/flavour line. Customer/order details are
@@ -35,8 +35,7 @@ const STORE = {
 const STARTER_DESSERT_TYPES = [
   { id: "brownies", name: "Brownies", orderMode: "box", boxSizes: "4,6,9", active: true },
   { id: "cookies", name: "Cookies", orderMode: "box", boxSizes: "2,4", active: true },
-  { id: "drinks", name: "Drinks", orderMode: "individual", boxSizes: "", active: true },
-  { id: "other-desserts", name: "Other Desserts", orderMode: "individual", boxSizes: "", active: true }
+  { id: "drinks", name: "Drinks", orderMode: "individual", boxSizes: "", active: true }
 ];
 
 const STARTER_ITEMS = [
@@ -50,7 +49,7 @@ const DESSERT_TYPE_COLUMNS = ["id", "name", "orderMode", "boxSizes", "active", "
 const ITEM_COLUMNS = ["id", "dessertTypeId", "name", "description", "price", "imageUrl", "active", "createdAt"];
 const ORDER_COLUMNS = [
   "orderId", "createdAt", "customerName", "phone", "address", "deliveryDate", "timeSlot",
-  "item", "flavour", "rate", "quantity", "itemTotal", "orderSubtotal", "status"
+  "item", "flavour", "rate", "quantity", "itemTotal", "orderSubtotal", "status", "fulfilmentType"
 ];
 
 // Cache schema checks and public menu data in warm Netlify function instances.
@@ -218,10 +217,13 @@ async function archiveOldOrdersTabIfRequired(sheets) {
   const ordersTab = sheetsInfo.find(sheet => sheet.properties.title === "Orders");
   if (!ordersTab) return;
 
-  const headerRows = await readSheetRows(sheets, "Orders!A1:N1");
+  const headerRows = await readSheetRows(sheets, "Orders!A1:O1");
   const currentHeader = headerRows[0] || [];
-  const alreadyNewLayout = ORDER_COLUMNS.every((column, index) => String(currentHeader[index] || "") === column);
-  if (alreadyNewLayout) return;
+  // The previous V7 layout already has columns A:N. If so, preserve all old
+  // rows and simply add the new fulfilmentType header in column O.
+  const existingCoreLayoutMatches = ORDER_COLUMNS.slice(0, 14).every((column, index) => String(currentHeader[index] || "") === column);
+  const fullLayoutMatches = ORDER_COLUMNS.every((column, index) => String(currentHeader[index] || "") === column);
+  if (existingCoreLayoutMatches || fullLayoutMatches) return;
 
   const oldRows = await readSheetRows(sheets, "Orders!A1:Z2");
   const hasOldData = oldRows.some(row => row.some(value => String(value ?? "").trim() !== ""));
@@ -378,9 +380,11 @@ async function getCatalogue(sheets, includeInactive = false, fresh = false) {
 
   const types = allTypes.filter(type => includeInactive || type.active);
   const allowedTypeIds = new Set(types.map(type => type.id));
-  const items = allItems.filter(item => allowedTypeIds.has(item.dessertTypeId) && (includeInactive || item.active));
+  const items = allItems.filter(item =>
+    (!item.dessertTypeId || allowedTypeIds.has(item.dessertTypeId)) &&
+    (includeInactive || item.active)
+  );
   const catalogue = { dessertTypes: types, items };
-
   if (!includeInactive) publicMenuCache = { data: catalogue, expiresAt: Date.now() + 45000 };
   return catalogue;
 }
@@ -414,15 +418,20 @@ function groupBoxSelections(items) {
 
 async function createOrder(request, sheets) {
   const body = await request.json();
-  const requiredFields = ["customerName", "phone", "address", "deliveryDate", "timeSlot"];
+  const requiredFields = ["customerName", "phone", "deliveryDate", "timeSlot"];
   for (const field of requiredFields) {
     if (!String(body[field] || "").trim()) throw new Error(`Please provide ${field}.`);
   }
   if (!Array.isArray(body.items) || body.items.length === 0) throw new Error("Your cart is empty.");
+
+  const fulfilmentType = String(body.fulfilmentType || "delivery").toLowerCase();
+  if (!["delivery", "pickup"].includes(fulfilmentType)) throw new Error("Choose pickup or delivery.");
+  const address = String(body.address || "").trim();
+  if (fulfilmentType === "delivery" && !address) throw new Error("Please provide your delivery address.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.deliveryDate) || body.deliveryDate <= todayInIndia()) {
-    throw new Error("Delivery date must be tomorrow or later.");
+    throw new Error("The pickup or delivery date must be tomorrow or later.");
   }
-  if (!STORE.deliverySlots.includes(body.timeSlot)) throw new Error("Please choose an available delivery time slot.");
+  if (!STORE.deliverySlots.includes(body.timeSlot)) throw new Error("Please choose an available pickup or delivery time slot.");
   if (!/^[0-9+()\s-]{8,16}$/.test(String(body.phone))) throw new Error("Please enter a valid phone number.");
 
   const catalogue = await getCatalogue(sheets, false, true);
@@ -430,10 +439,26 @@ async function createOrder(request, sheets) {
   const itemMap = new Map(catalogue.items.map(item => [item.id, item]));
   const whatsappItems = [];
   const orderLines = [];
+  const boxNumbersByType = new Map();
   let subtotal = 0;
 
   for (const cartEntry of body.items) {
-    const type = typeMap.get(String(cartEntry.dessertTypeId || ""));
+    const dessertTypeId = String(cartEntry.dessertTypeId || "");
+
+    // Standalone products have no dessert type and are ordered individually.
+    if (!dessertTypeId) {
+      const item = itemMap.get(String(cartEntry.itemId || ""));
+      const quantity = Number(cartEntry.quantity);
+      if (!item || item.dessertTypeId) throw new Error("One standalone item is no longer available. Please refresh the menu.");
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error("Enter a valid item quantity.");
+      const itemTotal = item.price * quantity;
+      subtotal += itemTotal;
+      orderLines.push({ item: item.name, flavour: "", rate: item.price, quantity, itemTotal });
+      whatsappItems.push({ kind: "individual", name: item.name, quantity, rate: item.price, lineTotal: itemTotal });
+      continue;
+    }
+
+    const type = typeMap.get(dessertTypeId);
     if (!type) throw new Error("A menu section is no longer available. Please refresh the menu.");
 
     if (type.orderMode === "box") {
@@ -448,10 +473,16 @@ async function createOrder(request, sheets) {
         return item;
       });
       const groupedLines = groupBoxSelections(selectedItems);
+      const boxNumber = (boxNumbersByType.get(type.id) || 0) + 1;
+      boxNumbersByType.set(type.id, boxNumber);
+      const boxLabel = `${type.name} Box of ${boxSize} - Box ${boxNumber}`;
       const boxTotal = groupedLines.reduce((sum, line) => sum + line.itemTotal, 0);
       subtotal += boxTotal;
+
+      // Each flavour becomes its own sheet row, but all rows carry the same
+      // box label so the box can be identified as one grouped item.
       orderLines.push(...groupedLines.map(line => ({
-        item: `${type.name} Box of ${boxSize}`,
+        item: boxLabel,
         flavour: line.name,
         rate: line.rate,
         quantity: line.quantity,
@@ -459,7 +490,7 @@ async function createOrder(request, sheets) {
       })));
       whatsappItems.push({
         kind: "box",
-        name: `${type.name} Box of ${boxSize}`,
+        name: boxLabel,
         boxSize,
         lines: groupedLines,
         lineTotal: boxTotal
@@ -471,20 +502,8 @@ async function createOrder(request, sheets) {
       if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error("Enter a valid item quantity.");
       const itemTotal = item.price * quantity;
       subtotal += itemTotal;
-      orderLines.push({
-        item: item.name,
-        flavour: "",
-        rate: item.price,
-        quantity,
-        itemTotal
-      });
-      whatsappItems.push({
-        kind: "individual",
-        name: item.name,
-        quantity,
-        rate: item.price,
-        lineTotal: itemTotal
-      });
+      orderLines.push({ item: item.name, flavour: "", rate: item.price, quantity, itemTotal });
+      whatsappItems.push({ kind: "individual", name: item.name, quantity, rate: item.price, lineTotal: itemTotal });
     }
   }
 
@@ -493,19 +512,22 @@ async function createOrder(request, sheets) {
   const customer = {
     customerName: String(body.customerName).trim(),
     phone: String(body.phone).trim(),
-    address: String(body.address).trim(),
+    address: fulfilmentType === "delivery" ? address : "",
     deliveryDate: body.deliveryDate,
-    timeSlot: body.timeSlot
+    timeSlot: body.timeSlot,
+    fulfilmentType
   };
   const status = "Pending WhatsApp confirmation";
   const values = orderLines.map((line, index) => [
     orderId, createdAt, customer.customerName, customer.phone, customer.address,
     customer.deliveryDate, customer.timeSlot, line.item, line.flavour, line.rate,
-    line.quantity, line.itemTotal, index === 0 ? subtotal : "", status
+    line.quantity, line.itemTotal, index === 0 ? subtotal : "", status, fulfilmentType
   ]);
-  await appendSheetRows(sheets, "Orders!A:N", values);
+  await appendSheetRows(sheets, "Orders!A:O", values);
 
-  return { ok: true, orderId, createdAt, customer, items: whatsappItems, lines: orderLines, subtotal };
+  // orderId is returned for the private Admin dashboard and spreadsheet.
+  // The customer-facing WhatsApp message is assembled without this reference.
+  return { ok: true, orderId, createdAt, customer, items: whatsappItems, lines: orderLines, subtotal, fulfilmentType };
 }
 
 // ============================================================================
@@ -648,8 +670,10 @@ async function saveItem(request, sheets) {
   if (!priceText || !Number.isInteger(price) || price < 0) throw new Error("Enter a valid full item price in INR.");
 
   const types = (await getCatalogue(sheets, true, true)).dessertTypes;
-  const type = types.find(item => item.id === dessertTypeId && item.active);
-  if (!type) throw new Error("Choose an active dessert type.");
+  // A blank dessertTypeId means standalone. A selected type must be active.
+  if (dessertTypeId && !types.some(type => type.id === dessertTypeId && type.active)) {
+    throw new Error("Choose an active dessert type or select Standalone item.");
+  }
 
   const rows = await readSheetRows(sheets, "Items!A2:H");
   const id = String(body.id || uniqueId(name));
@@ -693,7 +717,7 @@ async function deleteItem(request, sheets, url) {
 // updates every spreadsheet line belonging to that order.
 // ============================================================================
 async function getOrders(sheets) {
-  const rows = await readSheetRows(sheets, "Orders!A2:N");
+  const rows = await readSheetRows(sheets, "Orders!A2:O");
   const ordersById = new Map();
   for (const row of rows) {
     const orderId = String(row[0] ?? "");
@@ -709,6 +733,7 @@ async function getOrders(sheets) {
         timeSlot: String(row[6] || ""),
         subtotal: Number(row[12] || 0),
         status: String(row[13] || ""),
+        fulfilmentType: String(row[14] || "delivery").toLowerCase(),
         lines: []
       });
     }
