@@ -1,31 +1,30 @@
 // ============================================================================
-// CHATEAU DESSERTS - BACKEND API (BOX CUSTOMIZATION UPDATE FOR VERSION 5)
+// CHATEAU DESSERTS - BACKEND API
 // ============================================================================
-// This file runs on Netlify's servers. It connects to Google Sheets, validates
-// brownie/cookie box selections, records orders and uploads flavour photos to
-// GitHub. Private credentials stay in Netlify environment variables.
+// This file runs privately on Netlify. It connects the storefront and admin
+// portal to Google Sheets, validates orders, and uploads images to GitHub.
+// All passwords and tokens stay in Netlify environment variables.
 //
-// IMPORTANT:
-// - Keep GOOGLE_SERVICE_ACCOUNT_JSON, ADMIN_PASSWORD and GITHUB_TOKEN private.
-// - Existing Products and Orders tabs are preserved.
-// - The new Flavours tab stores the individual brownie and cookie flavours.
+// DATA MODEL
+// - DessertTypes: the menu sections created by the owner (Brownies, Cookies,
+//   Drinks, Other Desserts, or any new section added in Admin).
+// - Items: products/flavours that belong to a dessert type. Every item has
+//   its own full price. There is no base price or extra-charge calculation.
+// - Orders: one row per distinct item/flavour line. Customer/order details are
+//   repeated on each line; Order Subtotal appears only on the first line.
+// - Products and Flavours: older tabs are retained as backups.
 // ============================================================================
 
 import { google } from "googleapis";
 import crypto from "node:crypto";
 
-// ---------------------------------------------------------------------------
+// ============================================================================
 // 1. STORE SETTINGS
-// Edit these settings if box sizes, base price or delivery slots change.
-// The base price is per piece. A flavour's extra charge is ALSO per piece.
-// Example: base INR 199 + Nutella extra INR 30 = INR 229 per Nutella piece.
-// ---------------------------------------------------------------------------
+// Change delivery slots or default starter items here if required.
+// Box sizes are stored with each dessert type in Google Sheets and can be
+// edited through Admin. Prices are stored separately on every item.
+// ============================================================================
 const STORE = {
-  basePricePerPiece: 199,
-  boxSizes: {
-    Brownies: [4, 6, 9],
-    Cookies: [2, 4]
-  },
   deliverySlots: [
     "12:00 PM to 2:00 PM",
     "2:00 PM to 4:00 PM",
@@ -33,30 +32,45 @@ const STORE = {
   ]
 };
 
-// These flavours are added only when the new Flavours sheet has no entries.
-// You can later add, edit or remove flavours through /admin.html.
-const STARTER_FLAVOURS = [
-  { id: "classic-brownie", dessertType: "Brownies", name: "Classic Brownie", description: "Product description coming soon.", extraPrice: 0, imageUrl: "", active: true },
-  { id: "nutella-brownie", dessertType: "Brownies", name: "Nutella Brownie", description: "Product description coming soon.", extraPrice: 0, imageUrl: "", active: true },
-  { id: "choco-chip-cookie", dessertType: "Cookies", name: "Choco Chip Cookie", description: "Product description coming soon.", extraPrice: 0, imageUrl: "", active: true },
-  { id: "red-velvet-cookie", dessertType: "Cookies", name: "Red Velvet Cookie", description: "Product description coming soon.", extraPrice: 0, imageUrl: "", active: true }
+const STARTER_DESSERT_TYPES = [
+  { id: "brownies", name: "Brownies", orderMode: "box", boxSizes: "4,6,9", active: true },
+  { id: "cookies", name: "Cookies", orderMode: "box", boxSizes: "2,4", active: true },
+  { id: "drinks", name: "Drinks", orderMode: "individual", boxSizes: "", active: true },
+  { id: "other-desserts", name: "Other Desserts", orderMode: "individual", boxSizes: "", active: true }
 ];
 
-// Column headings for the Google Sheets tabs.
-const LEGACY_PRODUCT_COLUMNS = ["id", "name", "category", "description", "price", "imageUrl", "active", "createdAt"];
-const FLAVOUR_COLUMNS = ["id", "dessertType", "name", "description", "extraPrice", "imageUrl", "active", "createdAt"];
-const ORDER_COLUMNS = ["orderId", "createdAt", "customerName", "phone", "address", "deliveryDate", "timeSlot", "items", "subtotal", "status"];
+const STARTER_ITEMS = [
+  { id: "classic-brownie", dessertTypeId: "brownies", name: "Classic Brownie", description: "Product description coming soon.", price: 199, imageUrl: "", active: true },
+  { id: "nutella-brownie", dessertTypeId: "brownies", name: "Nutella Brownie", description: "Product description coming soon.", price: 199, imageUrl: "", active: true },
+  { id: "choco-chip-cookie", dessertTypeId: "cookies", name: "Choco Chip Cookie", description: "Product description coming soon.", price: 199, imageUrl: "", active: true },
+  { id: "red-velvet-cookie", dessertTypeId: "cookies", name: "Red Velvet Cookie", description: "Product description coming soon.", price: 199, imageUrl: "", active: true }
+];
 
-// ---------------------------------------------------------------------------
+const DESSERT_TYPE_COLUMNS = ["id", "name", "orderMode", "boxSizes", "active", "createdAt"];
+const ITEM_COLUMNS = ["id", "dessertTypeId", "name", "description", "price", "imageUrl", "active", "createdAt"];
+const ORDER_COLUMNS = [
+  "orderId", "createdAt", "customerName", "phone", "address", "deliveryDate", "timeSlot",
+  "item", "flavour", "rate", "quantity", "itemTotal", "orderSubtotal", "status"
+];
+
+// Cache schema checks and public menu data in warm Netlify function instances.
+// The browser also keeps a short session cache so returning customers see the
+// menu immediately while a fresh copy is checked in the background.
+let schemaReadyUntil = 0;
+let schemaSetupPromise = null;
+let publicMenuCache = { expiresAt: 0, data: null };
+
+// ============================================================================
 // 2. COMMON HELPERS
-// Small reusable functions used by different backend sections.
-// ---------------------------------------------------------------------------
-function jsonResponse(data, status = 200) {
+// Small functions shared by the backend sections below.
+// ============================================================================
+function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store"
+      "cache-control": "no-store",
+      ...extraHeaders
     }
   });
 }
@@ -71,12 +85,16 @@ function optionalEnvironmentVariable(name) {
   return String(process.env[name] || "").trim();
 }
 
-function makeId(text) {
-  return String(text)
+function makeId(value) {
+  return String(value)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 48) || "flavour";
+    .slice(0, 48) || "item";
+}
+
+function uniqueId(value) {
+  return `${makeId(value)}-${crypto.randomBytes(3).toString("hex")}`;
 }
 
 function todayInIndia() {
@@ -88,6 +106,18 @@ function todayInIndia() {
   }).format(new Date());
 }
 
+function readableCreatedAt(date = new Date()) {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true
+  }).format(date);
+}
+
 function passwordsMatch(suppliedPassword, savedPassword) {
   const supplied = Buffer.from(String(suppliedPassword || ""));
   const saved = Buffer.from(String(savedPassword || ""));
@@ -97,17 +127,27 @@ function passwordsMatch(suppliedPassword, savedPassword) {
 function requireAdmin(request) {
   const suppliedPassword = request.headers.get("x-admin-password") || "";
   const savedPassword = requiredEnvironmentVariable("ADMIN_PASSWORD");
-  if (!passwordsMatch(suppliedPassword, savedPassword)) {
-    throw new Error("Admin access denied.");
-  }
+  if (!passwordsMatch(suppliedPassword, savedPassword)) throw new Error("Admin access denied.");
 }
 
-// ---------------------------------------------------------------------------
-// 3. GOOGLE SHEETS CONNECTION
-// Creates Flavours if needed and keeps the old Products and Orders tabs.
-// The old Products tab is deliberately not deleted or overwritten with menu
-// flavour information. New menu data goes into the separate Flavours tab.
-// ---------------------------------------------------------------------------
+function parseBoxSizes(value) {
+  return String(value || "")
+    .split(/[,\s]+/)
+    .map(part => Number(part.trim()))
+    .filter(number => Number.isInteger(number) && number > 0 && number <= 50)
+    .filter((number, index, values) => values.indexOf(number) === index)
+    .sort((a, b) => a - b);
+}
+
+function invalidateMenuCache() {
+  publicMenuCache = { expiresAt: 0, data: null };
+}
+
+// ============================================================================
+// 3. GOOGLE SHEETS CONNECTION AND SAFE DATA MIGRATION
+// Creates the new tabs, preserves older tabs, migrates old Flavours into Items,
+// and archives the old Orders layout before creating the new detailed layout.
+// ============================================================================
 function getSpreadsheetId() {
   return requiredEnvironmentVariable("GOOGLE_SPREADSHEET_ID");
 }
@@ -121,227 +161,362 @@ async function getGoogleSheetsClient() {
   return google.sheets({ version: "v4", auth });
 }
 
-async function ensureSpreadsheetTabs(sheets) {
-  const spreadsheetId = getSpreadsheetId();
-  const metadata = await sheets.spreadsheets.get({
-    spreadsheetId,
-    fields: "sheets.properties.title"
-  });
-
-  const existingNames = new Set((metadata.data.sheets || []).map(sheet => sheet.properties.title));
-  const requests = [];
-  for (const tabName of ["Products", "Orders", "Flavours"]) {
-    if (!existingNames.has(tabName)) {
-      requests.push({ addSheet: { properties: { title: tabName } } });
-    }
-  }
-  if (requests.length) {
-    await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
-  }
-
-  // Keep the old Products tab's existing structure as a backup.
-  await sheets.spreadsheets.values.update({
-    spreadsheetId, range: "Products!A1:H1", valueInputOption: "RAW",
-    requestBody: { values: [LEGACY_PRODUCT_COLUMNS] }
-  });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId, range: "Flavours!A1:H1", valueInputOption: "RAW",
-    requestBody: { values: [FLAVOUR_COLUMNS] }
-  });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId, range: "Orders!A1:J1", valueInputOption: "RAW",
-    requestBody: { values: [ORDER_COLUMNS] }
-  });
-}
-
 async function readSheetRows(sheets, range) {
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId: getSpreadsheetId(),
-    range
+    range,
+    valueRenderOption: "UNFORMATTED_VALUE"
   });
   return result.data.values || [];
 }
 
-function rowToFlavour(row) {
+async function appendSheetRows(sheets, range, values) {
+  if (!values.length) return;
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: getSpreadsheetId(),
+    range,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values }
+  });
+}
+
+async function writeHeaderIfNeeded(sheets, tabName, columns) {
+  const row = await readSheetRows(sheets, `${tabName}!A1:${String.fromCharCode(64 + columns.length)}1`);
+  const current = row[0] || [];
+  const matches = columns.every((column, index) => String(current[index] || "") === column);
+  if (!matches) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: getSpreadsheetId(),
+      range: `${tabName}!A1:${String.fromCharCode(64 + columns.length)}1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [columns] }
+    });
+  }
+}
+
+async function createMissingTabs(sheets, names) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId: getSpreadsheetId(),
+    fields: "sheets.properties(sheetId,title)"
+  });
+  const existing = new Set((metadata.data.sheets || []).map(sheet => sheet.properties.title));
+  const requests = names.filter(name => !existing.has(name)).map(name => ({
+    addSheet: { properties: { title: name } }
+  }));
+  if (requests.length) {
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId: getSpreadsheetId(), requestBody: { requests } });
+  }
+}
+
+async function archiveOldOrdersTabIfRequired(sheets) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId: getSpreadsheetId(),
+    fields: "sheets.properties(sheetId,title)"
+  });
+  const sheetsInfo = metadata.data.sheets || [];
+  const ordersTab = sheetsInfo.find(sheet => sheet.properties.title === "Orders");
+  if (!ordersTab) return;
+
+  const headerRows = await readSheetRows(sheets, "Orders!A1:N1");
+  const currentHeader = headerRows[0] || [];
+  const alreadyNewLayout = ORDER_COLUMNS.every((column, index) => String(currentHeader[index] || "") === column);
+  if (alreadyNewLayout) return;
+
+  const oldRows = await readSheetRows(sheets, "Orders!A1:Z2");
+  const hasOldData = oldRows.some(row => row.some(value => String(value ?? "").trim() !== ""));
+  if (!hasOldData) return;
+
+  const usedNames = new Set(sheetsInfo.map(sheet => sheet.properties.title));
+  let archiveName = "Orders Archive";
+  let suffix = 2;
+  while (usedNames.has(archiveName)) {
+    archiveName = `Orders Archive ${suffix++}`;
+  }
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: getSpreadsheetId(),
+    requestBody: {
+      requests: [
+        {
+          updateSheetProperties: {
+            properties: { sheetId: ordersTab.properties.sheetId, title: archiveName },
+            fields: "title"
+          }
+        },
+        { addSheet: { properties: { title: "Orders" } } }
+      ]
+    }
+  });
+}
+
+async function seedDessertTypesIfEmpty(sheets) {
+  const rows = await readSheetRows(sheets, "DessertTypes!A2:F");
+  if (rows.length) return;
+  const createdAt = readableCreatedAt();
+  await appendSheetRows(sheets, "DessertTypes!A:F", STARTER_DESSERT_TYPES.map(type => [
+    type.id, type.name, type.orderMode, type.boxSizes, type.active, createdAt
+  ]));
+}
+
+async function seedItemsIfEmpty(sheets) {
+  const currentItems = await readSheetRows(sheets, "Items!A2:H");
+  if (currentItems.length) return;
+
+  // Upgrade existing Version 5 box-builder data without losing the existing
+  // flavour names, photos or descriptions. Old prices are converted to full
+  // prices: INR 199 base plus the former extra charge per piece.
+  const oldFlavours = await readSheetRows(sheets, "Flavours!A2:H");
+  if (oldFlavours.length) {
+    const typeRows = await readSheetRows(sheets, "DessertTypes!A2:F");
+    const knownTypes = new Set(typeRows.map(row => String(row[1] || "").toLowerCase()));
+    const newRows = [];
+
+    for (const row of oldFlavours) {
+      const oldTypeName = String(row[1] || "Brownies").trim();
+      const typeId = makeId(oldTypeName);
+      if (!knownTypes.has(oldTypeName.toLowerCase())) {
+        await appendSheetRows(sheets, "DessertTypes!A:F", [[
+          typeId, oldTypeName, ["Brownies", "Cookies"].includes(oldTypeName) ? "box" : "individual",
+          oldTypeName === "Brownies" ? "4,6,9" : oldTypeName === "Cookies" ? "2,4" : "",
+          true, readableCreatedAt()
+        ]]);
+        knownTypes.add(oldTypeName.toLowerCase());
+      }
+      newRows.push([
+        String(row[0] || uniqueId(row[2] || "item")),
+        typeId,
+        String(row[2] || "Untitled item"),
+        String(row[3] || ""),
+        Math.max(0, Math.round(199 + Number(row[4] || 0))),
+        String(row[5] || ""),
+        String(row[6]).toLowerCase() !== "false",
+        String(row[7] || readableCreatedAt())
+      ]);
+    }
+    await appendSheetRows(sheets, "Items!A:H", newRows);
+    return;
+  }
+
+  await appendSheetRows(sheets, "Items!A:H", STARTER_ITEMS.map(item => [
+    item.id, item.dessertTypeId, item.name, item.description, item.price,
+    item.imageUrl, item.active, readableCreatedAt()
+  ]));
+}
+
+async function ensureSpreadsheetTabs(sheets) {
+  if (Date.now() < schemaReadyUntil) return;
+  if (schemaSetupPromise) return schemaSetupPromise;
+
+  schemaSetupPromise = (async () => {
+    await archiveOldOrdersTabIfRequired(sheets);
+    await createMissingTabs(sheets, ["Products", "Flavours", "DessertTypes", "Items", "Orders"]);
+    await writeHeaderIfNeeded(sheets, "DessertTypes", DESSERT_TYPE_COLUMNS);
+    await writeHeaderIfNeeded(sheets, "Items", ITEM_COLUMNS);
+    await writeHeaderIfNeeded(sheets, "Orders", ORDER_COLUMNS);
+    await seedDessertTypesIfEmpty(sheets);
+    await seedItemsIfEmpty(sheets);
+    schemaReadyUntil = Date.now() + 120000;
+  })();
+
+  try {
+    await schemaSetupPromise;
+  } catch (error) {
+    schemaReadyUntil = 0;
+    throw error;
+  } finally {
+    schemaSetupPromise = null;
+  }
+}
+
+// ============================================================================
+// 4. CATALOGUE - DESSERT TYPES AND ITEMS
+// Items have full independent prices. For box types, item names become the
+// flavour choices shown for each piece inside a box. Individual types show
+// regular product cards with quantity controls.
+// ============================================================================
+function rowToDessertType(row) {
   return {
     id: String(row[0] || ""),
-    dessertType: String(row[1] || ""),
+    name: String(row[1] || ""),
+    orderMode: String(row[2] || "individual"),
+    boxSizes: parseBoxSizes(row[3]),
+    active: String(row[4]).toLowerCase() !== "false",
+    createdAt: String(row[5] || "")
+  };
+}
+
+function rowToItem(row) {
+  return {
+    id: String(row[0] || ""),
+    dessertTypeId: String(row[1] || ""),
     name: String(row[2] || ""),
     description: String(row[3] || ""),
-    extraPrice: Number(row[4] || 0),
+    price: Number(row[4] || 0),
     imageUrl: String(row[5] || ""),
     active: String(row[6]).toLowerCase() !== "false",
     createdAt: String(row[7] || "")
   };
 }
 
-// ---------------------------------------------------------------------------
-// 4. FLAVOUR MENU
-// The storefront asks for active flavours. The admin page can request all
-// flavours, including inactive ones, after providing the admin password.
-// ---------------------------------------------------------------------------
-async function getFlavours(sheets, includeInactive = false) {
+async function getCatalogue(sheets, includeInactive = false, fresh = false) {
   await ensureSpreadsheetTabs(sheets);
-  let rows = await readSheetRows(sheets, "Flavours!A2:H");
-
-  // Seed the four starter flavours only if the new tab has no flavour rows.
-  if (rows.length === 0) {
-    const starterRows = STARTER_FLAVOURS.map(flavour => [
-      flavour.id,
-      flavour.dessertType,
-      flavour.name,
-      flavour.description,
-      flavour.extraPrice,
-      flavour.imageUrl,
-      true,
-      new Date().toISOString()
-    ]);
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: getSpreadsheetId(),
-      range: "Flavours!A:H",
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: { values: starterRows }
-    });
-    rows = starterRows;
+  if (!includeInactive && !fresh && publicMenuCache.data && Date.now() < publicMenuCache.expiresAt) {
+    return publicMenuCache.data;
   }
 
-  return rows.map(rowToFlavour)
-    .filter(flavour => flavour.id && (includeInactive || flavour.active));
+  const [typeRows, itemRows] = await Promise.all([
+    readSheetRows(sheets, "DessertTypes!A2:F"),
+    readSheetRows(sheets, "Items!A2:H")
+  ]);
+  const allTypes = typeRows.map(rowToDessertType).filter(type => type.id);
+  const typeMap = new Map(allTypes.map(type => [type.id, type]));
+  const allItems = itemRows.map(rowToItem).filter(item => item.id).map(item => ({
+    ...item,
+    dessertType: typeMap.get(item.dessertTypeId)?.name || ""
+  }));
+
+  const types = allTypes.filter(type => includeInactive || type.active);
+  const allowedTypeIds = new Set(types.map(type => type.id));
+  const items = allItems.filter(item => allowedTypeIds.has(item.dessertTypeId) && (includeInactive || item.active));
+  const catalogue = { dessertTypes: types, items };
+
+  if (!includeInactive) publicMenuCache = { data: catalogue, expiresAt: Date.now() + 45000 };
+  return catalogue;
 }
 
-// ---------------------------------------------------------------------------
-// 5. CUSTOMER BOX ORDER CHECKOUT
-// Each box contains a flavour choice for every individual piece. The server
-// checks box size and every flavour against Google Sheets, then calculates
-// the price itself. Prices sent by the customer's browser are never trusted.
-// ---------------------------------------------------------------------------
+// ============================================================================
+// 5. CUSTOMER ORDER VALIDATION AND GOOGLE SHEETS RECORDING
+// Creates one spreadsheet row per distinct item/flavour within a box or
+// individual product line. Every row has Rate, Quantity and Item Total.
+// Order Subtotal is written once on the first row of each order so Excel sums
+// the order total only once. Customer fields are repeated on every line.
+// ============================================================================
+async function getNextOrderId(sheets) {
+  const rows = await readSheetRows(sheets, "Orders!A2:A");
+  let highest = 0;
+  for (const row of rows) {
+    const value = Number(row[0]);
+    if (Number.isSafeInteger(value) && value > highest) highest = value;
+  }
+  return highest + 1;
+}
+
+function groupBoxSelections(items) {
+  const grouped = new Map();
+  for (const item of items) {
+    const current = grouped.get(item.id) || { id: item.id, name: item.name, rate: item.price, quantity: 0 };
+    current.quantity += 1;
+    grouped.set(item.id, current);
+  }
+  return [...grouped.values()].map(item => ({ ...item, itemTotal: item.rate * item.quantity }));
+}
+
 async function createOrder(request, sheets) {
   const body = await request.json();
   const requiredFields = ["customerName", "phone", "address", "deliveryDate", "timeSlot"];
   for (const field of requiredFields) {
     if (!String(body[field] || "").trim()) throw new Error(`Please provide ${field}.`);
   }
-
-  if (!Array.isArray(body.items) || body.items.length === 0) {
-    throw new Error("Your cart is empty.");
-  }
+  if (!Array.isArray(body.items) || body.items.length === 0) throw new Error("Your cart is empty.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(body.deliveryDate) || body.deliveryDate <= todayInIndia()) {
     throw new Error("Delivery date must be tomorrow or later.");
   }
-  if (!STORE.deliverySlots.includes(body.timeSlot)) {
-    throw new Error("Please choose one of the available delivery time slots.");
-  }
-  if (!/^[0-9+()\s-]{8,16}$/.test(String(body.phone))) {
-    throw new Error("Please enter a valid phone number.");
-  }
+  if (!STORE.deliverySlots.includes(body.timeSlot)) throw new Error("Please choose an available delivery time slot.");
+  if (!/^[0-9+()\s-]{8,16}$/.test(String(body.phone))) throw new Error("Please enter a valid phone number.");
 
-  const availableFlavours = await getFlavours(sheets, false);
-  const orderItems = [];
+  const catalogue = await getCatalogue(sheets, false, true);
+  const typeMap = new Map(catalogue.dessertTypes.map(type => [type.id, type]));
+  const itemMap = new Map(catalogue.items.map(item => [item.id, item]));
+  const whatsappItems = [];
+  const orderLines = [];
   let subtotal = 0;
 
-  for (const cartBox of body.items) {
-    const dessertType = String(cartBox.dessertType || "");
-    const boxSize = Number(cartBox.boxSize);
-    const allowedSizes = STORE.boxSizes[dessertType];
-    if (!allowedSizes || !allowedSizes.includes(boxSize)) {
-      throw new Error("One of the selected box sizes is not available.");
-    }
-    if (!Array.isArray(cartBox.flavourIds) || cartBox.flavourIds.length !== boxSize) {
-      throw new Error(`A ${dessertType.toLowerCase()} box of ${boxSize} must have exactly ${boxSize} flavour selections.`);
-    }
+  for (const cartEntry of body.items) {
+    const type = typeMap.get(String(cartEntry.dessertTypeId || ""));
+    if (!type) throw new Error("A menu section is no longer available. Please refresh the menu.");
 
-    const selectedFlavours = cartBox.flavourIds.map(flavourId => {
-      const flavour = availableFlavours.find(item => item.id === String(flavourId));
-      if (!flavour || flavour.dessertType !== dessertType) {
-        throw new Error("A flavour in your box is no longer available. Please refresh the menu.");
+    if (type.orderMode === "box") {
+      const boxSize = Number(cartEntry.boxSize);
+      if (!type.boxSizes.includes(boxSize)) throw new Error(`The selected ${type.name} box size is not available.`);
+      if (!Array.isArray(cartEntry.itemIds) || cartEntry.itemIds.length !== boxSize) {
+        throw new Error(`${type.name} Box of ${boxSize} must have exactly ${boxSize} item selections.`);
       }
-      const unitPrice = STORE.basePricePerPiece + flavour.extraPrice;
-      return {
-        id: flavour.id,
-        name: flavour.name,
-        extraPrice: flavour.extraPrice,
-        unitPrice
-      };
-    });
-
-    const lineTotal = selectedFlavours.reduce((sum, flavour) => sum + flavour.unitPrice, 0);
-    subtotal += lineTotal;
-    orderItems.push({
-      name: `${dessertType} Box of ${boxSize}`,
-      dessertType,
-      boxSize,
-      flavours: selectedFlavours,
-      lineTotal
-    });
+      const selectedItems = cartEntry.itemIds.map(id => {
+        const item = itemMap.get(String(id));
+        if (!item || item.dessertTypeId !== type.id) throw new Error("One selected flavour is no longer available. Please refresh the menu.");
+        return item;
+      });
+      const groupedLines = groupBoxSelections(selectedItems);
+      const boxTotal = groupedLines.reduce((sum, line) => sum + line.itemTotal, 0);
+      subtotal += boxTotal;
+      orderLines.push(...groupedLines.map(line => ({
+        item: `${type.name} Box of ${boxSize}`,
+        flavour: line.name,
+        rate: line.rate,
+        quantity: line.quantity,
+        itemTotal: line.itemTotal
+      })));
+      whatsappItems.push({
+        kind: "box",
+        name: `${type.name} Box of ${boxSize}`,
+        boxSize,
+        lines: groupedLines,
+        lineTotal: boxTotal
+      });
+    } else {
+      const item = itemMap.get(String(cartEntry.itemId || ""));
+      const quantity = Number(cartEntry.quantity);
+      if (!item || item.dessertTypeId !== type.id) throw new Error("One selected item is no longer available. Please refresh the menu.");
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error("Enter a valid item quantity.");
+      const itemTotal = item.price * quantity;
+      subtotal += itemTotal;
+      orderLines.push({
+        item: item.name,
+        flavour: "",
+        rate: item.price,
+        quantity,
+        itemTotal
+      });
+      whatsappItems.push({
+        kind: "individual",
+        name: item.name,
+        quantity,
+        rate: item.price,
+        lineTotal: itemTotal
+      });
+    }
   }
 
-  const orderId = `CD-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14)}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-  const itemSummary = orderItems.map(box => {
-    const counts = new Map();
-    for (const flavour of box.flavours) {
-      const current = counts.get(flavour.name) || { count: 0, unitPrice: flavour.unitPrice };
-      current.count += 1;
-      counts.set(flavour.name, current);
-    }
-    const breakdown = [...counts.entries()]
-      .map(([name, detail]) => `${name} x ${detail.count} at INR ${detail.unitPrice} each`)
-      .join(", ");
-    return `${box.name}: ${breakdown} = INR ${box.lineTotal}`;
-  }).join(" | ");
-
-  const order = {
-    orderId,
+  const orderId = await getNextOrderId(sheets);
+  const createdAt = readableCreatedAt();
+  const customer = {
     customerName: String(body.customerName).trim(),
     phone: String(body.phone).trim(),
     address: String(body.address).trim(),
     deliveryDate: body.deliveryDate,
-    timeSlot: body.timeSlot,
-    items: orderItems,
-    subtotal,
-    createdAt: new Date().toISOString()
+    timeSlot: body.timeSlot
   };
+  const status = "Pending WhatsApp confirmation";
+  const values = orderLines.map((line, index) => [
+    orderId, createdAt, customer.customerName, customer.phone, customer.address,
+    customer.deliveryDate, customer.timeSlot, line.item, line.flavour, line.rate,
+    line.quantity, line.itemTotal, index === 0 ? subtotal : "", status
+  ]);
+  await appendSheetRows(sheets, "Orders!A:N", values);
 
-  // Save the order request before opening WhatsApp. The customer must still
-  // press Send in WhatsApp for you to receive the actual order message.
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: getSpreadsheetId(),
-    range: "Orders!A:J",
-    valueInputOption: "RAW",
-    insertDataOption: "INSERT_ROWS",
-    requestBody: {
-      values: [[
-        order.orderId,
-        order.createdAt,
-        order.customerName,
-        order.phone,
-        order.address,
-        order.deliveryDate,
-        order.timeSlot,
-        itemSummary,
-        order.subtotal,
-        "Pending WhatsApp confirmation"
-      ]]
-    }
-  });
-
-  return {
-    ok: true,
-    orderId: order.orderId,
-    items: order.items,
-    subtotal: order.subtotal
-  };
+  return { ok: true, orderId, createdAt, customer, items: whatsappItems, lines: orderLines, subtotal };
 }
 
-// ---------------------------------------------------------------------------
-// 6. FLAVOUR PHOTO UPLOADS TO GITHUB
-// Admin-selected images are stored in site/assets/products/ in the repository.
-// The GitHub token is read from Netlify and never sent to the browser.
-// ---------------------------------------------------------------------------
-async function uploadFlavourImageToGitHub(image, flavourName) {
+// ============================================================================
+// 6. IMAGE UPLOADS TO GITHUB
+// The private GitHub token stays on the server. Images are stored in the
+// repository folder site/assets/products/ and the returned URL is saved in
+// the Items tab.
+// ============================================================================
+async function uploadItemImageToGitHub(image, itemName) {
   if (!image) return "";
   if (!image.base64 || !image.mimeType || !image.name) throw new Error("Invalid image upload.");
-
   const fileTypes = {
     "image/jpeg": "jpg",
     "image/png": "png",
@@ -353,12 +528,11 @@ async function uploadFlavourImageToGitHub(image, flavourName) {
 
   const imageBuffer = Buffer.from(image.base64, "base64");
   if (imageBuffer.length > 3 * 1024 * 1024) throw new Error("Image must be 3 MB or smaller.");
-
   const owner = requiredEnvironmentVariable("GITHUB_OWNER");
   const repository = requiredEnvironmentVariable("GITHUB_REPO");
   const branch = optionalEnvironmentVariable("GITHUB_BRANCH") || "main";
   const token = requiredEnvironmentVariable("GITHUB_TOKEN");
-  const fileName = `${makeId(flavourName)}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}.${extension}`;
+  const fileName = `${makeId(itemName)}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}.${extension}`;
   const filePath = `site/assets/products/${fileName}`;
   const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
   const endpoint = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repository)}/contents/${encodedPath}`;
@@ -372,163 +546,213 @@ async function uploadFlavourImageToGitHub(image, flavourName) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      message: `Add flavour image ${fileName}`,
+      message: `Add item image ${fileName}`,
       content: imageBuffer.toString("base64"),
       branch
     })
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`GitHub image upload failed: ${result.message || response.statusText}`);
-
   return `https://raw.githubusercontent.com/${owner}/${repository}/${branch}/${filePath}`;
 }
 
-// ---------------------------------------------------------------------------
-// 7. ADMIN FLAVOUR MANAGEMENT
-// Add, edit, delete and display individual flavours with their per-piece extra.
-// The final price per piece is basePricePerPiece + extraPrice.
-// ---------------------------------------------------------------------------
-async function saveFlavour(request, sheets) {
+// ============================================================================
+// 7. ADMIN MANAGEMENT - DESSERT TYPES
+// Admin can add, edit, activate/deactivate and delete menu sections. A type
+// can use a build-your-own-box flow or individual item ordering.
+// ============================================================================
+async function saveDessertType(request, sheets) {
   requireAdmin(request);
   const body = await request.json();
-  const dessertTypes = Object.keys(STORE.boxSizes);
   const name = String(body.name || "").trim();
-  const dessertType = String(body.dessertType || "");
-  const extraPrice = Number(body.extraPrice);
+  const orderMode = String(body.orderMode || "individual");
+  const boxSizes = parseBoxSizes(body.boxSizes);
+  if (!name) throw new Error("Enter a dessert type name.");
+  if (!["box", "individual"].includes(orderMode)) throw new Error("Choose a valid ordering format.");
+  if (orderMode === "box" && boxSizes.length === 0) throw new Error("Enter at least one box size, for example 4, 6, 9.");
 
-  if (!name || !dessertTypes.includes(dessertType)) {
-    throw new Error("Enter a flavour name and choose Brownies or Cookies.");
-  }
-  if (!Number.isInteger(extraPrice) || extraPrice < 0) {
-    throw new Error("Enter a valid extra charge of INR 0 or more per piece.");
-  }
-
-  const rows = await readSheetRows(sheets, "Flavours!A2:H");
-  const flavourId = String(body.id || `${makeId(name)}-${crypto.randomBytes(3).toString("hex")}`);
-  const existingIndex = rows.findIndex(row => String(row[0]) === flavourId);
-  const existingFlavour = existingIndex >= 0 ? rowToFlavour(rows[existingIndex]) : null;
-
-  let imageUrl = String(body.imageUrl || existingFlavour?.imageUrl || "");
-  if (body.image && body.image.base64) {
-    imageUrl = await uploadFlavourImageToGitHub(body.image, name);
-  }
-
-  const rowValues = [[
-    flavourId,
-    dessertType,
-    name,
-    String(body.description || "").trim(),
-    extraPrice,
-    imageUrl,
-    true,
-    existingFlavour?.createdAt || new Date().toISOString()
-  ]];
+  const rows = await readSheetRows(sheets, "DessertTypes!A2:F");
+  const id = String(body.id || uniqueId(name));
+  const existingIndex = rows.findIndex(row => String(row[0]) === id);
+  const existing = existingIndex >= 0 ? rowToDessertType(rows[existingIndex]) : null;
+  const duplicate = rows.some((row, index) => index !== existingIndex && String(row[1] || "").trim().toLowerCase() === name.toLowerCase());
+  if (duplicate) throw new Error("A dessert type with this name already exists.");
+  const rowValues = [[id, name, orderMode, orderMode === "box" ? boxSizes.join(",") : "", body.active !== false, existing?.createdAt || readableCreatedAt()]];
 
   if (existingIndex >= 0) {
-    const sheetRowNumber = existingIndex + 2;
+    const rowNumber = existingIndex + 2;
     await sheets.spreadsheets.values.update({
-      spreadsheetId: getSpreadsheetId(),
-      range: `Flavours!A${sheetRowNumber}:H${sheetRowNumber}`,
-      valueInputOption: "RAW",
-      requestBody: { values: rowValues }
+      spreadsheetId: getSpreadsheetId(), range: `DessertTypes!A${rowNumber}:F${rowNumber}`,
+      valueInputOption: "RAW", requestBody: { values: rowValues }
     });
   } else {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: getSpreadsheetId(),
-      range: "Flavours!A:H",
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: { values: rowValues }
-    });
+    await appendSheetRows(sheets, "DessertTypes!A:F", rowValues);
   }
-
-  return { ok: true, flavour: rowToFlavour(rowValues[0]) };
+  invalidateMenuCache();
+  return { ok: true, dessertType: rowToDessertType(rowValues[0]) };
 }
 
-async function deleteFlavour(request, sheets, url) {
+async function deleteDessertType(request, sheets, url) {
   requireAdmin(request);
-  const flavourId = url.searchParams.get("id");
-  if (!flavourId) throw new Error("Missing flavour ID.");
+  const id = url.searchParams.get("id");
+  if (!id) throw new Error("Missing dessert type ID.");
+  const items = await readSheetRows(sheets, "Items!A2:H");
+  if (items.some(row => String(row[1]) === id)) {
+    throw new Error("This dessert type still has items. Delete or move those items before deleting the type.");
+  }
+  const rows = await readSheetRows(sheets, "DessertTypes!A2:F");
+  const index = rows.findIndex(row => String(row[0]) === id);
+  if (index < 0) throw new Error("Dessert type not found.");
+  await deleteSheetRow(sheets, "DessertTypes", index);
+  invalidateMenuCache();
+  return { ok: true };
+}
 
-  const rows = await readSheetRows(sheets, "Flavours!A2:H");
-  const rowIndex = rows.findIndex(row => String(row[0]) === flavourId);
-  if (rowIndex < 0) throw new Error("Flavour not found.");
-
+async function deleteSheetRow(sheets, tabName, dataRowIndexZeroBased) {
   const metadata = await sheets.spreadsheets.get({
-    spreadsheetId: getSpreadsheetId(),
-    fields: "sheets.properties"
+    spreadsheetId: getSpreadsheetId(), fields: "sheets.properties(sheetId,title)"
   });
-  const flavoursTab = metadata.data.sheets.find(sheet => sheet.properties.title === "Flavours");
+  const tab = (metadata.data.sheets || []).find(sheet => sheet.properties.title === tabName);
+  if (!tab) throw new Error(`${tabName} tab not found.`);
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: getSpreadsheetId(),
     requestBody: {
       requests: [{
         deleteDimension: {
           range: {
-            sheetId: flavoursTab.properties.sheetId,
+            sheetId: tab.properties.sheetId,
             dimension: "ROWS",
-            startIndex: rowIndex + 1,
-            endIndex: rowIndex + 2
+            startIndex: dataRowIndexZeroBased + 1,
+            endIndex: dataRowIndexZeroBased + 2
           }
         }
       }]
     }
   });
+}
+
+// ============================================================================
+// 8. ADMIN MANAGEMENT - ITEMS
+// Every item has its own full selling price. No base price or extra charge is
+// added. For box types, items appear as the flavour choices for each piece.
+// For individual types, items appear as normal product cards.
+// ============================================================================
+async function saveItem(request, sheets) {
+  requireAdmin(request);
+  const body = await request.json();
+  const name = String(body.name || "").trim();
+  const dessertTypeId = String(body.dessertTypeId || "");
+  const priceText = String(body.price ?? "").trim();
+  const price = Number(priceText);
+  if (!name) throw new Error("Enter an item name.");
+  if (!priceText || !Number.isInteger(price) || price < 0) throw new Error("Enter a valid full item price in INR.");
+
+  const types = (await getCatalogue(sheets, true, true)).dessertTypes;
+  const type = types.find(item => item.id === dessertTypeId && item.active);
+  if (!type) throw new Error("Choose an active dessert type.");
+
+  const rows = await readSheetRows(sheets, "Items!A2:H");
+  const id = String(body.id || uniqueId(name));
+  const existingIndex = rows.findIndex(row => String(row[0]) === id);
+  const existing = existingIndex >= 0 ? rowToItem(rows[existingIndex]) : null;
+  let imageUrl = String(body.imageUrl || existing?.imageUrl || "");
+  if (body.image && body.image.base64) imageUrl = await uploadItemImageToGitHub(body.image, name);
+  const rowValues = [[
+    id, dessertTypeId, name, String(body.description || "").trim(), price,
+    imageUrl, body.active !== false, existing?.createdAt || readableCreatedAt()
+  ]];
+
+  if (existingIndex >= 0) {
+    const rowNumber = existingIndex + 2;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: getSpreadsheetId(), range: `Items!A${rowNumber}:H${rowNumber}`,
+      valueInputOption: "RAW", requestBody: { values: rowValues }
+    });
+  } else {
+    await appendSheetRows(sheets, "Items!A:H", rowValues);
+  }
+  invalidateMenuCache();
+  return { ok: true, item: rowToItem(rowValues[0]) };
+}
+
+async function deleteItem(request, sheets, url) {
+  requireAdmin(request);
+  const id = url.searchParams.get("id");
+  if (!id) throw new Error("Missing item ID.");
+  const rows = await readSheetRows(sheets, "Items!A2:H");
+  const index = rows.findIndex(row => String(row[0]) === id);
+  if (index < 0) throw new Error("Item not found.");
+  await deleteSheetRow(sheets, "Items", index);
+  invalidateMenuCache();
   return { ok: true };
 }
 
-// ---------------------------------------------------------------------------
-// 8. ADMIN ORDER MANAGEMENT
-// Reads saved order requests and updates their status in the Orders tab.
-// ---------------------------------------------------------------------------
+// ============================================================================
+// 9. ADMIN ORDER MANAGEMENT
+// Orders are grouped by numeric order ID for the admin page. A status change
+// updates every spreadsheet line belonging to that order.
+// ============================================================================
 async function getOrders(sheets) {
-  const rows = await readSheetRows(sheets, "Orders!A2:J");
-  return rows.map(row => ({
-    orderId: String(row[0] || ""),
-    createdAt: String(row[1] || ""),
-    customerName: String(row[2] || ""),
-    phone: String(row[3] || ""),
-    address: String(row[4] || ""),
-    deliveryDate: String(row[5] || ""),
-    timeSlot: String(row[6] || ""),
-    items: String(row[7] || ""),
-    subtotal: Number(row[8] || 0),
-    status: String(row[9] || "")
-  })).reverse();
+  const rows = await readSheetRows(sheets, "Orders!A2:N");
+  const ordersById = new Map();
+  for (const row of rows) {
+    const orderId = String(row[0] ?? "");
+    if (!orderId) continue;
+    if (!ordersById.has(orderId)) {
+      ordersById.set(orderId, {
+        orderId,
+        createdAt: String(row[1] || ""),
+        customerName: String(row[2] || ""),
+        phone: String(row[3] || ""),
+        address: String(row[4] || ""),
+        deliveryDate: String(row[5] || ""),
+        timeSlot: String(row[6] || ""),
+        subtotal: Number(row[12] || 0),
+        status: String(row[13] || ""),
+        lines: []
+      });
+    }
+    ordersById.get(orderId).lines.push({
+      item: String(row[7] || ""),
+      flavour: String(row[8] || ""),
+      rate: Number(row[9] || 0),
+      quantity: Number(row[10] || 0),
+      itemTotal: Number(row[11] || 0)
+    });
+  }
+  return [...ordersById.values()].reverse();
 }
 
 async function updateOrderStatus(request, sheets) {
   requireAdmin(request);
   const body = await request.json();
   const allowedStatuses = [
-    "Pending WhatsApp confirmation",
-    "Confirmed",
-    "Preparing",
-    "Out for delivery",
-    "Delivered",
-    "Cancelled"
+    "Pending WhatsApp confirmation", "Confirmed", "Preparing",
+    "Out for delivery", "Delivered", "Cancelled"
   ];
-  if (!body.orderId || !allowedStatuses.includes(body.status)) {
-    throw new Error("Invalid order status update.");
-  }
+  if (body.orderId === undefined || !allowedStatuses.includes(body.status)) throw new Error("Invalid order status update.");
 
-  const rows = await readSheetRows(sheets, "Orders!A2:J");
-  const rowIndex = rows.findIndex(row => String(row[0]) === String(body.orderId));
-  if (rowIndex < 0) throw new Error("Order not found.");
+  const rows = await readSheetRows(sheets, "Orders!A2:N");
+  const matchingRows = [];
+  rows.forEach((row, index) => {
+    if (String(row[0]) === String(body.orderId)) matchingRows.push(index + 2);
+  });
+  if (!matchingRows.length) throw new Error("Order not found.");
 
-  await sheets.spreadsheets.values.update({
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: getSpreadsheetId(),
-    range: `Orders!J${rowIndex + 2}`,
-    valueInputOption: "RAW",
-    requestBody: { values: [[body.status]] }
+    requestBody: {
+      valueInputOption: "RAW",
+      data: matchingRows.map(rowNumber => ({ range: `Orders!N${rowNumber}`, values: [[body.status]] }))
+    }
   });
   return { ok: true };
 }
 
-// ---------------------------------------------------------------------------
-// 9. API ROUTER
-// Maps public storefront and protected admin requests to the functions above.
-// ---------------------------------------------------------------------------
+// ============================================================================
+// 10. API ROUTER
+// Connects the storefront and protected admin portal to the functions above.
+// ============================================================================
 export default async function handler(request) {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "";
@@ -536,7 +760,7 @@ export default async function handler(request) {
   try {
     if (request.method === "OPTIONS") return new Response(null, { status: 204 });
 
-    // Login can be checked without opening a spreadsheet connection.
+    // Login checks the password without opening Google Sheets.
     if (action === "login" && request.method === "POST") {
       const body = await request.json();
       const savedPassword = requiredEnvironmentVariable("ADMIN_PASSWORD");
@@ -546,21 +770,25 @@ export default async function handler(request) {
     const sheets = await getGoogleSheetsClient();
     await ensureSpreadsheetTabs(sheets);
 
-    if (action === "flavours" && request.method === "GET") {
-      const includeInactive = url.searchParams.get("includeInactive") === "true";
-      if (includeInactive) requireAdmin(request);
-      const flavours = await getFlavours(sheets, includeInactive);
-      return jsonResponse({
-        basePricePerPiece: STORE.basePricePerPiece,
-        boxSizes: STORE.boxSizes,
-        flavours
-      });
+    if (action === "menu" && request.method === "GET") {
+      const catalogue = await getCatalogue(sheets, false);
+      return jsonResponse(catalogue, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=120" });
     }
-    if (action === "flavours" && request.method === "POST") {
-      return jsonResponse(await saveFlavour(request, sheets));
+    if (action === "catalogue" && request.method === "GET") {
+      requireAdmin(request);
+      return jsonResponse(await getCatalogue(sheets, true, true));
     }
-    if (action === "flavours" && request.method === "DELETE") {
-      return jsonResponse(await deleteFlavour(request, sheets, url));
+    if (action === "items" && request.method === "POST") {
+      return jsonResponse(await saveItem(request, sheets));
+    }
+    if (action === "items" && request.method === "DELETE") {
+      return jsonResponse(await deleteItem(request, sheets, url));
+    }
+    if (action === "dessert-types" && request.method === "POST") {
+      return jsonResponse(await saveDessertType(request, sheets));
+    }
+    if (action === "dessert-types" && request.method === "DELETE") {
+      return jsonResponse(await deleteDessertType(request, sheets, url));
     }
     if (action === "order" && request.method === "POST") {
       return jsonResponse(await createOrder(request, sheets));
