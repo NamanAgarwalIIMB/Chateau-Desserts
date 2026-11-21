@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ===================================================================
+       1. ADMIN PAGE INFORMATION
+       This page is separate from the public storefront and is not linked
+       in the customer navigation. Access is protected by the backend password.
+       =================================================================== -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chateau Desserts - Admin</title>
+
+  <style>
+    /* =====================================================================
+       2. ADMIN PAGE COLOURS AND GENERAL LAYOUT
+       ===================================================================== */
+    :root {
+      --ink: #292321;
+      --muted: #756b66;
+      --paper: #fbf8f4;
+      --accent: #6d1d25;
+      --line: #e8dfd7;
+      --white: #ffffff;
+      --success: #176b3a;
+      --error: #a12626;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 1050px; margin: auto; padding: 30px 20px 70px; }
+    .brand { font: bold 24px Georgia, serif; }
+    h1, h2, h3 { font-family: Georgia, serif; font-weight: normal; }
+    h1 { font-size: 38px; margin: 28px 0 8px; }
+    h2 { font-size: 26px; margin: 0 0 18px; }
+    h3 { font-size: 21px; }
+    .muted, .note { color: var(--muted); }
+    .note { font-size: 13px; line-height: 1.55; }
+    .hidden { display: none !important; }
+
+    /* =====================================================================
+       3. BUTTONS, FORMS AND PANELS
+       ===================================================================== */
+    .primary, .secondary, .danger {
+      border: 0;
+      border-radius: 3px;
+      padding: 11px 15px;
+    }
+    .primary { background: var(--accent); color: var(--white); }
+    .secondary { background: #eee6df; color: var(--ink); }
+    .danger { background: #f6e5e3; color: #8a2525; }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--line);
+      padding: 22px;
+      margin-top: 20px;
+    }
+    label { display: block; font-size: 13px; font-weight: bold; margin: 14px 0 6px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: var(--white);
+      border-radius: 2px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .full { width: 100%; margin-top: 14px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+    .tab.active { outline: 2px solid #d7b7a7; }
+
+    /* =====================================================================
+       4. ORDER CARDS, PRODUCT IMAGE PREVIEW AND ALERT MESSAGES
+       ===================================================================== */
+    .order {
+      border: 1px solid var(--line);
+      padding: 17px;
+      margin: 14px 0;
+      background: var(--white);
+    }
+    .order-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .order p { line-height: 1.5; overflow-wrap: anywhere; }
+    .image-preview { max-width: 120px; max-height: 100px; display: block; margin-top: 10px; }
+    .success-message { color: var(--success); }
+    .error-message { color: var(--error); }
+
+    /* =====================================================================
+       5. MOBILE LAYOUT
+       ===================================================================== */
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      .row { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 6. TOP OF ADMIN PAGE -->
+    <a class="brand" href="/">Chateau Desserts</a>
+    <h1>Admin portal</h1>
+    <p class="muted">Manage products, product photos and customer orders.</p>
+
+    <!-- 7. ADMIN LOGIN -->
+    <section class="panel" id="loginPanel">
+      <h2>Admin login</h2>
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password">
+      <button class="primary full" onclick="login()">Log in</button>
+      <p id="loginMessage" class="note" aria-live="polite"></p>
+    </section>
+
+    <!-- 8. ADMIN DASHBOARD - shown only after a successful login -->
+    <section id="dashboard" class="hidden">
+      <div class="tabs">
+        <button class="primary tab active" id="productsTab" onclick="showTab('products')">Products</button>
+        <button class="secondary tab" id="ordersTab" onclick="showTab('orders')">Orders</button>
+        <button class="secondary" onclick="logout()">Log out</button>
+      </div>
+
+
+      <!-- 9. PRODUCTS TAB - add, edit, delete and upload a product photo -->
+      <section class="panel" id="productsView">
+        <h2 id="formTitle">Add a product</h2>
+        <input type="hidden" id="productId">
+
+        <div class="grid">
+          <div>
+            <label for="productName">Product name</label>
+            <input id="productName" placeholder="Product name">
+          </div>
+          <div>
+            <label for="category">Category</label>
+            <select id="category">
+              <option>Brownies</option>
+              <option>Cookies</option>
+              <option>Drinks</option>
+              <option>Other Desserts</option>
+            </select>
+          </div>
+          <div>
+            <label for="price">Price in INR</label>
+            <input id="price" type="number" min="1" step="1" placeholder="199">
+          </div>
+          <div>
+            <label for="image">Product image</label>
+            <input id="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+            <div class="note">JPG, PNG, WEBP or GIF. Maximum 3 MB. The photo is saved in the product images folder in your GitHub repository.</div>
+            <img id="imagePreview" class="image-preview hidden" alt="Selected product preview">
+          </div>
+        </div>
+
+        <label for="description">Description</label>
+        <textarea id="description" placeholder="Write a short product description"></textarea>
+        <button class="primary" onclick="saveProduct()">Save product</button>
+        <button class="secondary" onclick="clearProductForm()">Clear</button>
+        <p id="productMessage" class="note" aria-live="polite"></p>
+
+        <h2 style="margin-top: 30px;">Current products</h2>
+        <div id="productList"></div>
+      </section>
+
+      <!-- 10. ORDERS TAB - see customer details and change order status -->
+      <section class="panel hidden" id="ordersView">
+        <div class="row">
+          <div>
+            <h2>Customer orders</h2>
+            <p class="note">Orders are recorded when a customer clicks Continue to WhatsApp. Confirm the customer's WhatsApp message before treating the order as confirmed.</p>
+          </div>
+          <button class="secondary" onclick="loadOrders()">Refresh orders</button>
+        </div>
+        <div id="orderList"></div>
+      </section>
+    </section>
+  </div>
+
+  <script>
+    // =====================================================================
+    // 11. ADMIN SETTINGS AND PAGE STATE
+    // =====================================================================
+    const API_URL = "/.netlify/functions/api";
+    let adminPassword = ""; // Kept only in this page's memory while logged in.
+    let products = [];
+    let selectedImage = null;
+
+    // Shortcuts used throughout the admin page.
+    function element(id) {
+      return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[character]);
+    }
+
+    function formatMoney(value) {
+      return Number(value || 0).toLocaleString("en-IN");
+    }
+
+    function showMessage(id, text, type = "normal") {
+      const target = element(id);
+      target.textContent = text;
+      target.className = type === "error"
+        ? "note error-message"
+        : type === "success"
+          ? "note success-message"
+          : "note";
+    }
+
+    // =====================================================================
+    // 12. BACKEND REQUEST HELPER
+    // All admin actions use this function so the password header is added
+    // automatically after a successful login.
+    // =====================================================================
+    async function callApi(action, options = {}) {
+      const requestOptions = {
+        method: options.method || "GET",
+        headers: {
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(adminPassword ? { "x-admin-password": adminPassword } : {})
+        }
+      };
+
+      if (options.body) {
+        requestOptions.body = JSON.stringify(options.body);
+      }
+
+      const response = await fetch(`${API_URL}?action=${action}${options.query || ""}`, requestOptions);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Request failed.");
+      return result;
+    }
+
+    // =====================================================================
+    // 13. LOGIN AND LOGOUT
+    // The backend checks the password against ADMIN_PASSWORD in Netlify.
+    // =====================================================================
+    async function login() {
+      const password = element("password").value;
+
+      try {
+        const result = await callApi("login", {
+          method: "POST",
+          body: { password }
+        });
+        if (!result.ok) throw new Error("Incorrect password.");
+
+        adminPassword = password;
+        element("loginPanel").classList.add("hidden");
+        element("dashboard").classList.remove("hidden");
+        await loadProducts();
+        await loadOrders();
+      } catch (error) {
+        showMessage("loginMessage", error.message, "error");
+      }
+    }
+
+    function logout() {
+      adminPassword = "";
+      products = [];
+      selectedImage = null;
+      element("dashboard").classList.add("hidden");
+      element("loginPanel").classList.remove("hidden");
+      element("password").value = "";
+    }
+
+    // =====================================================================
+    // 14. DASHBOARD TAB SWITCHING
+    // =====================================================================
+    function showTab(tabName) {
+      const showProducts = tabName === "products";
+      element("productsView").classList.toggle("hidden", !showProducts);
+      element("ordersView").classList.toggle("hidden", showProducts);
+      element("productsTab").className = showProducts ? "primary tab active" : "secondary tab";
+      element("ordersTab").className = showProducts ? "secondary tab" : "primary tab active";
+
+      if (!showProducts) loadOrders();
+    }
+
+    // =====================================================================
+    // 15. LOAD AND DISPLAY PRODUCTS
+    // =====================================================================
+    async function loadProducts() {
+      const result = await callApi("products");
+      products = result.products || [];
+      renderProducts();
+    }
+
+    function renderProducts() {
+      const target = element("productList");
+      if (products.length === 0) {
+        target.innerHTML = '<p class="note">No products have been added.</p>';
+        return;
+      }
+
+      target.innerHTML = products.map(product => `
+        <div class="row">
+          <div>
+            <strong>${escapeHtml(product.name)}</strong>
+            <div class="note">${escapeHtml(product.category)} | INR ${formatMoney(product.price)}</div>
+          </div>
+          <div class="row-actions">
+            <button class="secondary" onclick="editProduct('${escapeHtml(product.id)}')">Edit</button>
+            <button class="danger" onclick="deleteProduct('${escapeHtml(product.id)}')">Delete</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // Put an existing product's details into the form so they can be edited.
+    function editProduct(productId) {
+      const product = products.find(item => item.id === productId);
+      if (!product) return;
+
+      element("productId").value = product.id;
+      element("productName").value = product.name;
+      element("category").value = product.category;
+      element("price").value = product.price;
+      element("description").value = product.description || "";
+      element("image").value = "";
+      selectedImage = null;
+      element("imagePreview").classList.add("hidden");
+      element("formTitle").textContent = "Edit product";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    // Empty the product form and prepare it for a new product.
+    function clearProductForm() {
+      ["productId", "productName", "price", "description"].forEach(id => {
+        element(id).value = "";
+      });
+      element("category").value = "Brownies";
+      element("image").value = "";
+      element("imagePreview").classList.add("hidden");
+      selectedImage = null;
+      element("formTitle").textContent = "Add a product";
+    }
+
+    // =====================================================================
+    // 16. PRODUCT IMAGE SELECTION AND PREVIEW
+    // The image is held temporarily in the browser, then uploaded by the
+    // secure Netlify backend when Save product is clicked.
+    // =====================================================================
+    element("image").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      selectedImage = null;
+
+      if (!file) {
+        element("imagePreview").classList.add("hidden");
+        return;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        showMessage("productMessage", "Image must be 3 MB or smaller.", "error");
+        event.target.value = "";
+        return;
+      }
+
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowedTypes.includes(file.type)) {
+        showMessage("productMessage", "Choose a JPG, PNG, WEBP or GIF image.", "error");
+        event.target.value = "";
+        return;
+      }
+
+      const fileBuffer = await file.arrayBuffer();
+      let binaryData = "";
+      new Uint8Array(fileBuffer).forEach(byte => {
+        binaryData += String.fromCharCode(byte);
+      });
+
+      selectedImage = {
+        name: file.name,
+        mimeType: file.type,
+        base64: btoa(binaryData)
+      };
+      element("imagePreview").src = URL.createObjectURL(file);
+      element("imagePreview").classList.remove("hidden");
+    });
+
+    // Save a new product or update the selected existing product.
+    async function saveProduct() {
+      showMessage("productMessage", "Saving product...");
+
+      const product = {
+        id: element("productId").value || undefined,
+        name: element("productName").value.trim(),
+        category: element("category").value,
+        price: element("price").value,
+        description: element("description").value.trim(),
+        image: selectedImage
+      };
+
+      try {
+        await callApi("products", {
+          method: "POST",
+          body: product
+        });
+        showMessage("productMessage", "Product saved successfully.", "success");
+        clearProductForm();
+        await loadProducts();
+      } catch (error) {
+        showMessage("productMessage", error.message, "error");
+      }
+    }
+
+    // Delete a product after asking for confirmation.
+    async function deleteProduct(productId) {
+      if (!confirm("Delete this product from the menu?")) return;
+
+      try {
+        await callApi("products", {
+          method: "DELETE",
+          query: `&id=${encodeURIComponent(productId)}`
+        });
+        await loadProducts();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    // =====================================================================
+    // 17. LOAD AND DISPLAY CUSTOMER ORDERS
+    // =====================================================================
+    async function loadOrders() {
+      const target = element("orderList");
+      target.innerHTML = '<p class="note">Loading orders...</p>';
+
+      try {
+        const result = await callApi("orders");
+        const orders = result.orders || [];
+
+        if (orders.length === 0) {
+          target.innerHTML = '<p class="note">No orders have been recorded yet.</p>';
+          return;
+        }
+
+        const allowedStatuses = [
+          "Pending WhatsApp confirmation",
+          "Confirmed",
+          "Preparing",
+          "Out for delivery",
+          "Delivered",
+          "Cancelled"
+        ];
+
+        target.innerHTML = orders.map(order => `
+          <article class="order">
+            <div class="order-head">
+              <strong>${escapeHtml(order.orderId)}</strong>
+              <strong>INR ${formatMoney(order.subtotal)}</strong>
+            </div>
+            <p>
+              <strong>${escapeHtml(order.customerName)}</strong> | ${escapeHtml(order.phone)}<br>
+              ${escapeHtml(order.address)}<br>
+              Delivery: ${escapeHtml(order.deliveryDate)} | ${escapeHtml(order.timeSlot)}
+            </p>
+            <p><strong>Items:</strong><br>${escapeHtml(order.items)}</p>
+            <div class="grid">
+              <div>
+                <label for="status-${escapeHtml(order.orderId)}">Status</label>
+                <select id="status-${escapeHtml(order.orderId)}">
+                  ${allowedStatuses.map(status => `
+                    <option ${order.status === status ? "selected" : ""}>${status}</option>
+                  `).join("")}
+                </select>
+              </div>
+              <div style="align-self: end;">
+                <button class="primary" onclick="updateOrderStatus('${escapeHtml(order.orderId)}')">Update status</button>
+              </div>
+            </div>
+            <p class="note">Created: ${escapeHtml(order.createdAt)}</p>
+          </article>
+        `).join("");
+      } catch (error) {
+        target.innerHTML = `<p class="note error-message">${escapeHtml(error.message)}</p>`;
+      }
+    }
+
+    // Save the status selected for one order.
+    async function updateOrderStatus(orderId) {
+      try {
+        await callApi("order-status", {
+          method: "PATCH",
+          body: {
+            orderId,
+            status: element(`status-${orderId}`).value
+          }
+        });
+        await loadOrders();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  </script>
+</body>
+</html>

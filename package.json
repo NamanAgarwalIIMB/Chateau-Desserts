@@ -1,0 +1,10 @@
+{
+  "name": "chateau-desserts-storefront",
+  "version": "5.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chateau Desserts storefront and Netlify backend",
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}
