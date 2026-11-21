@@ -8,7 +8,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chateau Desserts</title>
-  <meta name="description" content="Brownies, cookies and drinks from Chateau Desserts. Local pre-orders in Surat, Gujarat.">
+  <meta name="description" content="Brownies and cookies from Chateau Desserts. Local pre-orders in Surat, Gujarat.">
 
   <style>
     /* =====================================================================
@@ -103,77 +103,41 @@
     }
 
     /* =====================================================================
-       5. MENU AND PRODUCT CARDS
-       Products are loaded from the Google Sheets Products tab.
-       Do not add live products here; use the admin portal instead.
+       5. BROWNIE AND COOKIE BOX BUILDER
+       Styles for the two menu choices, box size selector and per-piece flavours.
        ===================================================================== */
     .section { padding: 68px 6vw; scroll-margin-top: 76px; }
-    .section-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: end;
-      margin-bottom: 24px;
-    }
-    h2 { font-size: 38px; margin: 8px 0; }
-    .muted { color: var(--muted); }
-    .category { margin-top: 42px; }
-    .category h3 { font-size: 29px; margin: 0 0 18px; }
-    .products {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 20px;
-    }
-    .product {
-      background: var(--white);
-      border: 1px solid var(--line);
-      display: flex;
-      flex-direction: column;
-    }
-    .product img {
-      width: 100%;
-      height: 220px;
-      object-fit: cover;
-      display: block;
-    }
-    .product.no-image .product-info { padding-top: 26px; }
-    .product-info {
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-    }
-    .product-info h4 {
-      font: normal 23px Georgia, serif;
-      margin: 0 0 9px;
-    }
-    .product-info p {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
-      min-height: 40px;
-      margin: 0;
-    }
-    .product-bottom {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: auto;
-      padding-top: 18px;
-    }
-    .price { font-weight: bold; }
-    .small-note, .form-note {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    .small-note { margin-top: 10px; }
-    .empty {
-      padding: 32px;
-      text-align: center;
-      border: 1px dashed var(--line);
-      color: var(--muted);
-      background: var(--white);
+    .section-head { display:flex; justify-content:space-between; align-items:end; margin-bottom:24px; }
+    h2 { font-size:38px; margin:8px 0; }
+    .muted { color:var(--muted); }
+    .box-category-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:22px; }
+    .box-category { background:var(--white); border:1px solid var(--line); padding:26px; display:flex; flex-direction:column; align-items:flex-start; }
+    .box-category h3 { font:normal 31px Georgia,serif; margin:12px 0 8px; }
+    .box-category p { color:var(--muted); line-height:1.6; flex:1; }
+    .box-category button { margin-top:14px; }
+    .box-builder { margin-top:30px; padding:26px; background:var(--white); border:1px solid var(--line); scroll-margin-top:90px; }
+    .box-builder-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+    .box-builder-head h3 { font:normal 30px Georgia,serif; margin:8px 0; }
+    .box-size-select { max-width:280px; }
+    .flavour-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:20px 0; }
+    .flavour-reference { border:1px solid var(--line); background:#fff; padding:12px; }
+    .flavour-reference img,.flavour-image-placeholder { width:100%; height:115px; object-fit:cover; display:grid; place-items:center; background:#eee4da; color:#8b7768; font:16px Georgia,serif; }
+    .flavour-reference strong { display:block; margin:10px 0 4px; }
+    .flavour-reference p { font-size:12px; line-height:1.45; color:var(--muted); margin:0 0 6px; }
+    .flavour-picker-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:18px 0; }
+    .flavour-picker label { display:block; margin:10px 0 6px; font-size:13px; font-weight:bold; }
+    .flavour-picker select { width:100%; padding:12px; border:1px solid var(--line); background:white; }
+    .box-builder-total { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 0; border-top:1px solid var(--line); }
+    .box-builder-total strong { font-size:20px; }
+    .small-note,.form-note { font-size:12px; color:var(--muted); line-height:1.5; }
+    .empty { padding:32px; text-align:center; border:1px dashed var(--line); color:var(--muted); background:var(--white); }
+    .cart-piece-list { margin:8px 0 12px; padding-left:20px; color:var(--muted); font-size:13px; line-height:1.65; }
+    .cart-box-details { min-width:0; }
+    @media(max-width:700px) {
+      .box-category-grid,.flavour-picker-grid { grid-template-columns:1fr; }
+      .box-builder { padding:18px; }
+      .box-builder-head { flex-direction:column; }
+      .box-builder-total { align-items:flex-start; flex-direction:column; }
     }
 
     /* =====================================================================
@@ -349,7 +313,7 @@
       <div>
         <div class="eyebrow">Small batch desserts made to order</div>
         <h1>A little sweetness,<br>made special.</h1>
-        <p>Thoughtfully made brownies, cookies and desserts, prepared fresh for moments worth celebrating. Pre-orders for local delivery in Surat.</p>
+        <p>Thoughtfully made brownies and cookies, prepared fresh for moments worth celebrating. Pre-orders for local delivery in Surat.</p>
         <a class="primary" href="#menu" style="display: inline-block;">Explore the menu</a>
       </div>
     </section>
@@ -449,7 +413,8 @@
         <option>4:00 PM to 6:00 PM</option>
       </select>
 
-      <p class="form-note">Minimum order quantity is 4 pieces per brownie item and 2 pieces per cookie item.</p>
+      <p class="form-note">Choose a box size and select a flavour for every individual piece. You can add multiple boxes to your cart, including more than one box of the same size.</p>
+      <p class="form-note" id="cartMessage" aria-live="polite"></p>
       <button class="primary full" id="checkoutButton" onclick="checkout()">Continue to WhatsApp</button>
       <p class="message" id="checkoutMessage" aria-live="polite"></p>
     </aside>
@@ -459,37 +424,27 @@
     // =====================================================================
     // 16. WEBSITE SETTINGS
     // Change the WhatsApp number here if it ever changes. Use country code
-    // followed by digits only, with no plus sign or spaces.
+    // and digits only. The server independently validates box sizes/prices.
     // =====================================================================
     const API_URL = "/.netlify/functions/api";
     const WHATSAPP_NUMBER = "918980595645";
 
-    // These minimum quantities also appear in the backend. If you change
-    // them, update STORE.minimumQuantity in netlify/functions/api.mjs too.
-    const MINIMUM_QUANTITY = {
-      Brownies: 4,
-      Cookies: 2,
-      Drinks: 1,
-      "Other Desserts": 1
-    };
-
     // =====================================================================
-    // 17. PAGE STATE AND COMMON HELPERS
-    // products are loaded from Google Sheets; cart stores the customer's
-    // current selections until checkout is completed.
+    // 17. MENU AND CART STATE
+    // The customer chooses Brownies or Cookies, a box size, then a flavour
+    // separately for every piece in that box. Multiple boxes can be added.
     // =====================================================================
-    let products = [];
-    let cart = {};
-
-    function getMinimumQuantity(product) {
-      return MINIMUM_QUANTITY[product.category] || 1;
-    }
+    let flavours = [];
+    let basePricePerPiece = 199;
+    let boxSizes = { Brownies: [4, 6, 9], Cookies: [2, 4] };
+    let activeDessertType = "";
+    let activeBoxSize = 0;
+    let cart = [];
 
     function formatMoney(value) {
       return Number(value || 0).toLocaleString("en-IN");
     }
 
-    // Escape text received from the sheet before placing it inside HTML.
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, character => ({
         "&": "&amp;",
@@ -500,20 +455,29 @@
       })[character]);
     }
 
-    // =====================================================================
-    // 18. LOAD AND DISPLAY PRODUCTS
-    // The storefront reads the Products tab through the Netlify backend.
-    // Add or edit products in /admin.html, not in this file.
-    // =====================================================================
-    async function loadProducts() {
-      const menu = document.getElementById("menuContent");
+    function getFlavour(dessertType, flavourId) {
+      return flavours.find(item => item.id === flavourId && item.dessertType === dessertType);
+    }
 
+    function getPiecePrice(flavour) {
+      return basePricePerPiece + Number(flavour.extraPrice || 0);
+    }
+
+    // =====================================================================
+    // 18. LOAD AND DISPLAY THE TWO MAIN MENU OPTIONS
+    // Brownies and Cookies are the only main options. Box sizes are shown
+    // after the customer clicks one of these options.
+    // =====================================================================
+    async function loadFlavours() {
+      const menu = document.getElementById("menuContent");
       try {
-        const response = await fetch(`${API_URL}?action=products`);
+        const response = await fetch(`${API_URL}?action=flavours`);
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Could not load the menu.");
 
-        products = result.products || [];
+        flavours = result.flavours || [];
+        basePricePerPiece = Number(result.basePricePerPiece || 199);
+        boxSizes = result.boxSizes || boxSizes;
         renderMenu();
       } catch (error) {
         menu.innerHTML = `<div class="empty">The menu could not be loaded. Please refresh the page. ${escapeHtml(error.message)}</div>`;
@@ -521,121 +485,203 @@
     }
 
     function renderMenu() {
-      const allCategories = ["Brownies", "Cookies", "Drinks", "Other Desserts"];
-      const groups = allCategories
-        .map(category => ({
-          category,
-          products: products.filter(product => product.category === category)
-        }))
-        .filter(group => group.products.length > 0);
-
       const menu = document.getElementById("menuContent");
-      if (groups.length === 0) {
-        menu.innerHTML = '<div class="empty">The menu will be available soon.</div>';
+      menu.innerHTML = `
+        <div class="box-category-grid">
+          <article class="box-category">
+            <div class="eyebrow">Choose your box</div>
+            <h3>Brownies</h3>
+            <p>Choose a box of 4, 6 or 9 brownies. Pick the flavour of every individual piece.</p>
+            <button class="primary" onclick="openBoxBuilder('Brownies')">Choose brownies</button>
+          </article>
+          <article class="box-category">
+            <div class="eyebrow">Choose your box</div>
+            <h3>Cookies</h3>
+            <p>Choose a box of 2 or 4 cookies. Pick the flavour of every individual piece.</p>
+            <button class="primary" onclick="openBoxBuilder('Cookies')">Choose cookies</button>
+          </article>
+        </div>
+        <div id="boxBuilder"></div>
+      `;
+    }
+
+    // Open the box builder for one dessert type.
+    function openBoxBuilder(dessertType) {
+      activeDessertType = dessertType;
+      activeBoxSize = boxSizes[dessertType][0];
+      renderBoxBuilder();
+      document.getElementById("boxBuilder").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // Draw one flavour dropdown for each brownie/cookie in the selected box.
+    function renderBoxBuilder() {
+      const builder = document.getElementById("boxBuilder");
+      if (!activeDessertType) {
+        builder.innerHTML = "";
         return;
       }
 
-      menu.innerHTML = groups.map(group => `
-        <section class="category">
-          <h3>${escapeHtml(group.category)}</h3>
-          <div class="products">${group.products.map(createProductCard).join("")}</div>
-        </section>
+      const availableFlavours = flavours.filter(item => item.dessertType === activeDessertType);
+      if (availableFlavours.length === 0) {
+        builder.innerHTML = `<div class="box-builder"><h3>${escapeHtml(activeDessertType)}</h3><p class="empty">Flavours will be available here soon.</p></div>`;
+        return;
+      }
+
+      const sizeOptions = boxSizes[activeDessertType].map(size =>
+        `<option value="${size}" ${size === activeBoxSize ? "selected" : ""}>Box of ${size}</option>`
+      ).join("");
+
+      const flavourOptions = availableFlavours.map(flavour => {
+        const piecePrice = getPiecePrice(flavour);
+        const extraText = Number(flavour.extraPrice) > 0
+          ? ` - INR ${formatMoney(piecePrice)} per piece`
+          : ` - INR ${formatMoney(piecePrice)} per piece`;
+        return `<option value="${escapeHtml(flavour.id)}">${escapeHtml(flavour.name)}${extraText}</option>`;
+      }).join("");
+
+      const flavourGallery = availableFlavours.map(flavour => `
+        <article class="flavour-reference">
+          ${flavour.imageUrl
+            ? `<img src="${escapeHtml(flavour.imageUrl)}" alt="${escapeHtml(flavour.name)}" loading="lazy">`
+            : `<div class="flavour-image-placeholder">Chateau Desserts</div>`}
+          <strong>${escapeHtml(flavour.name)}</strong>
+          <p>${escapeHtml(flavour.description || "")}</p>
+          <small>INR ${formatMoney(getPiecePrice(flavour))} per piece</small>
+        </article>
       `).join("");
+
+      const selectors = Array.from({ length: activeBoxSize }, (_, index) => `
+        <div class="flavour-picker">
+          <label for="pieceFlavour${index}">Piece ${index + 1}</label>
+          <select id="pieceFlavour${index}" class="flavour-choice" onchange="updateBoxPrice()">
+            <option value="">Choose a flavour</option>
+            ${flavourOptions}
+          </select>
+        </div>
+      `).join("");
+
+      builder.innerHTML = `
+        <section class="box-builder">
+          <div class="box-builder-head">
+            <div>
+              <div class="eyebrow">Build your box</div>
+              <h3>${escapeHtml(activeDessertType)}</h3>
+              <p class="small-note">Base price: INR ${formatMoney(basePricePerPiece)} per piece. Some flavours may cost extra.</p>
+            </div>
+            <button class="secondary" onclick="closeBoxBuilder()">Close</button>
+          </div>
+          <label for="boxSize">Choose box size</label>
+          <select id="boxSize" class="box-size-select" onchange="changeBoxSize(this.value)">${sizeOptions}</select>
+          <h4>Available flavours</h4>
+          <div class="flavour-gallery">${flavourGallery}</div>
+          <h4>Choose each piece in your box</h4>
+          <div class="flavour-picker-grid">${selectors}</div>
+          <div class="box-builder-total">
+            <span id="boxPriceMessage">Choose a flavour for each piece to see your total.</span>
+            <strong id="boxPriceTotal">INR 0</strong>
+          </div>
+          <button class="primary" id="addBoxButton" onclick="addConfiguredBox()" disabled>Add box to cart</button>
+        </section>
+      `;
+      updateBoxPrice();
     }
 
-    function createProductCard(product) {
-      const image = product.imageUrl
-        ? `<img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy">`
-        : "";
-      const minimum = getMinimumQuantity(product);
+    function closeBoxBuilder() {
+      activeDessertType = "";
+      activeBoxSize = 0;
+      document.getElementById("boxBuilder").innerHTML = "";
+    }
 
-      return `
-        <article class="product ${image ? "" : "no-image"}">
-          ${image}
-          <div class="product-info">
-            <h4>${escapeHtml(product.name)}</h4>
-            <p>${escapeHtml(product.description || "")}</p>
-            <div class="product-bottom">
-              <span class="price">INR ${formatMoney(product.price)}</span>
-              <button class="primary" onclick="addToCart('${escapeHtml(product.id)}')">Add to cart</button>
-            </div>
-            <div class="small-note">Minimum ${minimum} ${minimum === 1 ? "piece" : "pieces"} per item</div>
-          </div>
-        </article>
-      `;
+    function changeBoxSize(size) {
+      activeBoxSize = Number(size);
+      renderBoxBuilder();
+    }
+
+    // Recalculate the displayed box price every time a flavour is selected.
+    function updateBoxPrice() {
+      const selects = [...document.querySelectorAll(".flavour-choice")];
+      const selected = selects
+        .map(select => getFlavour(activeDessertType, select.value))
+        .filter(Boolean);
+      const total = selected.reduce((sum, flavour) => sum + getPiecePrice(flavour), 0);
+      const allChosen = selects.length === activeBoxSize && selected.length === activeBoxSize;
+
+      document.getElementById("boxPriceMessage").textContent = allChosen
+        ? `${activeBoxSize} pieces selected`
+        : `${selected.length} of ${activeBoxSize} flavours selected`;
+      document.getElementById("boxPriceTotal").textContent = `INR ${formatMoney(total)}`;
+      document.getElementById("addBoxButton").disabled = !allChosen;
+    }
+
+    // Add one complete box configuration to the cart. Each flavour selection
+    // is saved separately, so a box can contain a mix of different flavours.
+    function addConfiguredBox() {
+      const flavourIds = [...document.querySelectorAll(".flavour-choice")].map(select => select.value);
+      if (flavourIds.length !== activeBoxSize || flavourIds.some(id => !id)) return;
+
+      const selectedFlavours = flavourIds.map(id => getFlavour(activeDessertType, id));
+      const estimatedTotal = selectedFlavours.reduce((sum, flavour) => sum + getPiecePrice(flavour), 0);
+      cart.push({
+        cartId: `box-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        dessertType: activeDessertType,
+        boxSize: activeBoxSize,
+        flavourIds,
+        flavours: selectedFlavours.map(flavour => ({
+          id: flavour.id,
+          name: flavour.name,
+          unitPrice: getPiecePrice(flavour)
+        })),
+        estimatedTotal
+      });
+
+      renderCart();
+      closeBoxBuilder();
+      document.getElementById("cartMessage").textContent = "Your box has been added to the cart.";
     }
 
     // =====================================================================
     // 19. SHOPPING CART
-    // Add, remove and change quantities. Brownie and cookie minimums are
-    // checked here for convenience and checked again by the backend.
+    // Each cart line is one complete box. Customers can add multiple boxes,
+    // including two boxes of four if they need eight brownies.
     // =====================================================================
-    function addToCart(productId) {
-      const product = products.find(item => item.id === productId);
-      if (!product) return;
-
-      if (!cart[productId]) {
-        cart[productId] = { ...product, quantity: 0 };
-      }
-      cart[productId].quantity += getMinimumQuantity(product);
-      renderCart();
-    }
-
-    function changeQuantity(productId, change) {
-      const item = cart[productId];
-      if (!item) return;
-
-      const nextQuantity = item.quantity + change;
-      if (nextQuantity < getMinimumQuantity(item)) {
-        delete cart[productId];
-      } else {
-        item.quantity = nextQuantity;
-      }
-      renderCart();
-    }
-
-    function removeFromCart(productId) {
-      delete cart[productId];
-      renderCart();
-    }
-
     function getCartSubtotal() {
-      return Object.values(cart).reduce(
-        (total, item) => total + item.price * item.quantity,
-        0
-      );
+      return cart.reduce((sum, box) => sum + box.estimatedTotal, 0);
+    }
+
+    function removeBoxFromCart(cartId) {
+      cart = cart.filter(box => box.cartId !== cartId);
+      renderCart();
     }
 
     function renderCart() {
-      const items = Object.values(cart);
-      const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
+      const boxCount = cart.length;
+      const pieceCount = cart.reduce((sum, box) => sum + box.boxSize, 0);
       const subtotal = getCartSubtotal();
-
-      document.getElementById("cartCount").textContent = totalQuantity;
+      document.getElementById("cartCount").textContent = `${boxCount} box${boxCount === 1 ? "" : "es"}`;
       document.getElementById("fabTotal").textContent = formatMoney(subtotal);
       document.getElementById("cartTotal").textContent = formatMoney(subtotal);
 
       const cartItems = document.getElementById("cartItems");
-      if (items.length === 0) {
+      const cartMessage = document.getElementById("cartMessage");
+      if (cart.length === 0) {
         cartItems.innerHTML = '<div class="empty">Your cart is empty.</div>';
+        if (cartMessage) cartMessage.textContent = "";
         return;
       }
 
-      cartItems.innerHTML = items.map(item => `
+      cartItems.innerHTML = cart.map(box => `
         <div class="cart-line">
-          <div>
-            <strong>${escapeHtml(item.name)}</strong>
-            <div class="form-note">INR ${formatMoney(item.price)} each. Minimum ${getMinimumQuantity(item)}.</div>
-            <div class="qty">
-              <button onclick="changeQuantity('${escapeHtml(item.id)}', -1)">-</button>
-              <span>${item.quantity}</span>
-              <button onclick="changeQuantity('${escapeHtml(item.id)}', 1)">+</button>
-              <button class="remove" onclick="removeFromCart('${escapeHtml(item.id)}')">Remove</button>
-            </div>
+          <div class="cart-box-details">
+            <strong>${escapeHtml(box.dessertType)} - Box of ${box.boxSize}</strong>
+            <ol class="cart-piece-list">
+              ${box.flavours.map(flavour => `<li>${escapeHtml(flavour.name)} - INR ${formatMoney(flavour.unitPrice)}</li>`).join("")}
+            </ol>
+            <button class="remove" onclick="removeBoxFromCart('${escapeHtml(box.cartId)}')">Remove this box</button>
           </div>
-          <strong>INR ${formatMoney(item.price * item.quantity)}</strong>
+          <strong>INR ${formatMoney(box.estimatedTotal)}</strong>
         </div>
       `).join("");
+      if (cartMessage) cartMessage.textContent = `${pieceCount} pieces across ${boxCount} box${boxCount === 1 ? "" : "es"}.`;
     }
 
     function openCart() {
@@ -648,7 +694,7 @@
 
     // =====================================================================
     // 20. DELIVERY DATE
-    // The calendar starts at tomorrow. The backend independently checks it.
+    // The browser date picker starts tomorrow. The backend checks it again.
     // =====================================================================
     function setEarliestDeliveryDate() {
       const tomorrow = new Date();
@@ -660,18 +706,16 @@
     }
 
     // =====================================================================
-    // 21. CHECKOUT AND WHATSAPP
-    // First records the order in Google Sheets. Then opens WhatsApp with a
-    // prefilled message. The customer must press Send so you receive the
-    // order request and can confirm availability and payment on WhatsApp.
+    // 21. CHECKOUT AND WHATSAPP CONFIRMATION
+    // The server recalculates every piece price and records the order in
+    // Google Sheets. WhatsApp opens with the readable order message. Customer
+    // must press Send so the owner receives it and confirms payment directly.
     // =====================================================================
     async function checkout() {
       const button = document.getElementById("checkoutButton");
       const message = document.getElementById("checkoutMessage");
-      const items = Object.values(cart);
-
-      if (items.length === 0) {
-        message.textContent = "Please add products to your cart first.";
+      if (cart.length === 0) {
+        message.textContent = "Please add at least one box to your cart.";
         return;
       }
 
@@ -681,11 +725,19 @@
         address: document.getElementById("customerAddress").value.trim(),
         deliveryDate: document.getElementById("deliveryDate").value,
         timeSlot: document.getElementById("timeSlot").value,
-        items: items.map(item => ({ id: item.id, quantity: item.quantity }))
+        items: cart.map(box => ({
+          dessertType: box.dessertType,
+          boxSize: box.boxSize,
+          flavourIds: box.flavourIds
+        }))
       };
 
       if (!order.customerName || !order.phone || !order.address || !order.deliveryDate || !order.timeSlot) {
         message.textContent = "Please complete all delivery details.";
+        return;
+      }
+      if (!/^[0-9+()\s-]{8,16}$/.test(order.phone)) {
+        message.textContent = "Please enter a valid phone number.";
         return;
       }
 
@@ -697,18 +749,9 @@
         return;
       }
 
-      for (const item of items) {
-        if (item.quantity < getMinimumQuantity(item)) {
-          message.textContent = `${item.name} requires at least ${getMinimumQuantity(item)} pieces.`;
-          return;
-        }
-      }
-
       button.disabled = true;
       button.textContent = "Saving order...";
       message.textContent = "Your order is being recorded.";
-
-      // Open a blank tab during the click so the browser does not block WhatsApp.
       const whatsappWindow = window.open("about:blank", "_blank");
 
       try {
@@ -720,21 +763,21 @@
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Could not save this order.");
 
-        const orderLines = result.items.map(item =>
-          `${item.name} - ${item.quantity} x INR ${formatMoney(item.price)} = INR ${formatMoney(item.lineTotal)}`
-        ).join("\n");
+        const boxLines = result.items.map(box => {
+          const pieceLines = box.flavours.map((flavour, index) =>
+            `${index + 1}. ${flavour.name} - INR ${formatMoney(flavour.unitPrice)}`
+          ).join("\n");
+          return `${box.name}\n${pieceLines}\nBox total: INR ${formatMoney(box.lineTotal)}`;
+        }).join("\n\n");
 
-        const whatsappMessage = `Hello Chateau Desserts. I would like to place a pre-order.\n\nORDER SUMMARY\n${orderLines}\n\nTotal: INR ${formatMoney(result.subtotal)}\nOrder reference: ${result.orderId}\n\nCUSTOMER DETAILS\nName: ${order.customerName}\nPhone: ${order.phone}\nAddress: ${order.address}\nDelivery date: ${order.deliveryDate}\nTime slot: ${order.timeSlot}\n\nPlease confirm availability and my order. Thank you.`;
+        const whatsappMessage = `Hello Chateau Desserts. I would like to place a pre-order.\n\nORDER SUMMARY\n${boxLines}\n\nGrand total: INR ${formatMoney(result.subtotal)}\nOrder reference: ${result.orderId}\n\nCUSTOMER DETAILS\nName: ${order.customerName}\nPhone: ${order.phone}\nAddress: ${order.address}\nDelivery date: ${order.deliveryDate}\nTime slot: ${order.timeSlot}\n\nPlease confirm availability and payment details. Thank you.`;
         const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
 
-        if (whatsappWindow) {
-          whatsappWindow.location.href = whatsappUrl;
-        } else {
-          window.location.href = whatsappUrl;
-        }
+        if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+        else window.location.href = whatsappUrl;
 
         message.textContent = `Order ${result.orderId} has been saved. Please press Send in WhatsApp to submit it.`;
-        cart = {};
+        cart = [];
         renderCart();
       } catch (error) {
         if (whatsappWindow) whatsappWindow.close();
@@ -747,11 +790,10 @@
 
     // =====================================================================
     // 22. START THE STOREFRONT
-    // These run once after the page has loaded.
     // =====================================================================
     setEarliestDeliveryDate();
     renderCart();
-    loadProducts();
+    loadFlavours();
   </script>
 </body>
 </html>
