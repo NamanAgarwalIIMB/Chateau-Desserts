@@ -89,8 +89,9 @@
             <input id="itemName" placeholder="For example, Biscoff Brownie">
           </div>
           <div>
-            <label for="itemDessertType">Dessert type</label>
+            <label for="itemDessertType">Dessert type (optional)</label>
             <select id="itemDessertType"></select>
+            <p class="note">Choose a dessert type to place this item inside a menu section. Choose Standalone item if it should appear on the menu by itself, without a category.</p>
           </div>
           <div>
             <label for="itemPrice">Full price per item in INR</label>
@@ -118,7 +119,7 @@
       <!-- 7. ADD AND EDIT DESSERT TYPES -->
       <section class="panel hidden" id="typesView">
         <h2 id="typeFormTitle">Add dessert type</h2>
-        <p class="note">A dessert type is a menu section such as Brownies, Cookies, Drinks or Other Desserts. Choose whether customers build a box or order individual items from that section.</p>
+        <p class="note">A dessert type is a main menu section such as Brownies, Cookies, Drinks or Cheesecakes. Items can also be added as standalone products without a dessert type.</p>
         <input type="hidden" id="dessertTypeId">
         <div class="grid">
           <div>
@@ -262,10 +263,11 @@
 
     function populateDessertTypeDropdown(selectedId = "") {
       const activeTypes = dessertTypes.filter(type => type.active);
-      element("itemDessertType").innerHTML = activeTypes.map(type =>
+      const standaloneOption = `<option value="" ${selectedId ? "" : "selected"}>Standalone item (no dessert type)</option>`;
+      const typeOptions = activeTypes.map(type =>
         `<option value="${escapeHtml(type.id)}" ${type.id === selectedId ? "selected" : ""}>${escapeHtml(type.name)}</option>`
       ).join("");
-      if (!activeTypes.length) element("itemDessertType").innerHTML = '<option value="">Add an active dessert type first</option>';
+      element("itemDessertType").innerHTML = standaloneOption + typeOptions;
     }
 
     // =====================================================================
@@ -280,9 +282,10 @@
       }
       target.innerHTML = items.map(item => {
         const type = dessertTypes.find(entry => entry.id === item.dessertTypeId);
+        const placement = item.dessertTypeId ? (type?.name || "Unassigned type") : "Standalone item";
         return `<div class="row">
           <div><strong>${escapeHtml(item.name)}</strong>
-            <div class="note">${escapeHtml(type?.name || "Unknown type")} | INR ${formatMoney(item.price)} each | ${item.active ? "Visible" : "Hidden"}</div>
+            <div class="note">${escapeHtml(placement)} | INR ${formatMoney(item.price)} each | ${item.active ? "Visible" : "Hidden"}</div>
             ${item.description ? `<div class="note">${escapeHtml(item.description)}</div>` : ""}
           </div>
           <div class="row-actions">
@@ -467,7 +470,10 @@
         target.innerHTML = orders.map(order => `
           <article class="order">
             <div class="order-head"><strong>Order ${escapeHtml(order.orderId)}</strong><strong>INR ${formatMoney(order.subtotal)}</strong></div>
-            <p><strong>${escapeHtml(order.customerName)}</strong> | ${escapeHtml(order.phone)}<br>${escapeHtml(order.address)}<br>Delivery: ${escapeHtml(order.deliveryDate)} | ${escapeHtml(order.timeSlot)}</p>
+            <p><strong>${escapeHtml(order.customerName)}</strong> | ${escapeHtml(order.phone)}<br>
+              Fulfilment: ${order.fulfilmentType === "pickup" ? "Pickup" : "Delivery (additional charges apply)"}<br>
+              ${order.fulfilmentType === "pickup" ? "No delivery address required" : `Address: ${escapeHtml(order.address)}`}<br>
+              ${order.fulfilmentType === "pickup" ? "Pickup" : "Delivery"}: ${escapeHtml(order.deliveryDate)} | ${escapeHtml(order.timeSlot)}</p>
             <table class="line-table"><thead><tr><th>Item</th><th>Flavour</th><th>Rate</th><th>Qty</th><th>Line total</th></tr></thead>
               <tbody>${order.lines.map(line => `<tr><td>${escapeHtml(line.item)}</td><td>${escapeHtml(line.flavour || "-")}</td><td>INR ${formatMoney(line.rate)}</td><td>${line.quantity}</td><td>INR ${formatMoney(line.itemTotal)}</td></tr>`).join("")}</tbody>
             </table>
