@@ -125,3 +125,5 @@ If you change a Netlify environment variable, trigger a new deployment so the se
 - The website does not automatically know whether the customer pressed Send in WhatsApp. Check the message before confirming an order.
 - Google Sheets, Netlify and GitHub free usage is subject to each provider's limits and policies.
 - Test the complete flow before sharing the website publicly.
+
+Development branch created for Chateau Desserts website updates.
