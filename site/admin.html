@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- 1. PAGE INFORMATION -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chateau Desserts - Admin</title>
+
+  <!-- 2. ADMIN PORTAL STYLES -->
+  <style>
+    :root { --ink:#292321; --muted:#756b66; --paper:#fbf8f4; --accent:#6d1d25; --line:#e8dfd7; --white:#fff; --success:#176b3a; --error:#a12626; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font-family:Arial,Helvetica,sans-serif; }
+    button,input,select,textarea { font:inherit; }
+    button { cursor:pointer; }
+    a { color:inherit; text-decoration:none; }
+    .wrap { max-width:1120px; margin:auto; padding:30px 20px 70px; }
+    .brand { font:bold 24px Georgia,serif; }
+    h1,h2,h3 { font-family:Georgia,serif; font-weight:normal; }
+    h1 { font-size:38px; margin:28px 0 8px; }
+    h2 { font-size:27px; margin:0 0 14px; }
+    h3 { font-size:21px; }
+    .muted,.note { color:var(--muted); }
+    .note { font-size:13px; line-height:1.55; }
+    .hidden { display:none !important; }
+    .primary,.secondary,.danger { border:0; border-radius:3px; padding:11px 15px; }
+    .primary { background:var(--accent); color:white; }
+    .secondary { background:#eee6df; color:var(--ink); }
+    .danger { background:#f6e5e3; color:#8a2525; }
+    button:disabled { opacity:.6; cursor:wait; }
+    .panel { background:white; border:1px solid var(--line); padding:22px; margin-top:20px; }
+    label { display:block; font-size:13px; font-weight:bold; margin:14px 0 6px; }
+    input,select,textarea { width:100%; padding:12px; border:1px solid var(--line); background:white; border-radius:2px; }
+    textarea { min-height:82px; resize:vertical; }
+    .full { width:100%; margin-top:14px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .row { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); }
+    .row-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .tabs { display:flex; flex-wrap:wrap; gap:9px; margin-top:24px; }
+    .tab.active { outline:2px solid #d7b7a7; }
+    .image-preview { max-width:130px; max-height:110px; display:block; margin-top:10px; object-fit:cover; }
+    .success-message { color:var(--success); }
+    .error-message { color:var(--error); }
+    .order { border:1px solid var(--line); padding:17px; margin:14px 0; background:white; }
+    .order-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .order p { line-height:1.5; overflow-wrap:anywhere; }
+    .line-table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px; }
+    .line-table th,.line-table td { border:1px solid var(--line); padding:8px; text-align:left; }
+    .line-table th { background:#f5eee8; }
+    .checkbox-line { display:flex; align-items:center; gap:8px; margin-top:12px; }
+    .checkbox-line input { width:auto; }
+    .form-actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:15px; }
+    @media(max-width:650px) { .grid { grid-template-columns:1fr; } .row { align-items:flex-start; flex-direction:column; } .line-table { font-size:11px; } .line-table th,.line-table td { padding:5px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 3. ADMIN PAGE HEADER -->
+    <a class="brand" href="/">Chateau Desserts</a>
+    <h1>Admin portal</h1>
+    <p class="muted">Manage your menu sections, items, photos and customer orders.</p>
+
+    <!-- 4. ADMIN LOGIN -->
+    <section class="panel" id="loginPanel">
+      <h2>Admin login</h2>
+      <form id="loginForm" onsubmit="event.preventDefault(); login();">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+        <button type="submit" class="primary full">Log in</button>
+        <p id="loginMessage" class="note" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- 5. ADMIN DASHBOARD -->
+    <section id="dashboard" class="hidden">
+      <div class="tabs">
+        <button class="primary tab active" id="itemsTab" onclick="showTab('items')">Items</button>
+        <button class="secondary tab" id="typesTab" onclick="showTab('types')">Dessert Types</button>
+        <button class="secondary tab" id="ordersTab" onclick="showTab('orders')">Orders</button>
+        <button class="secondary" onclick="logout()">Log out</button>
+      </div>
+
+      <!-- 6. ADD AND EDIT ITEMS -->
+      <section class="panel" id="itemsView">
+        <form id="itemForm" onsubmit="event.preventDefault(); saveItem();">
+        <h2 id="itemFormTitle">Add item</h2>
+        <p class="note">Each item has its own complete selling price. For Brownies and Cookies, these items appear as the flavour choices for each piece in a box. For individual menu types, customers add the item directly to their cart.</p>
+        <input type="hidden" id="itemId">
+        <div class="grid">
+          <div>
+            <label for="itemName">Item name</label>
+            <input id="itemName" placeholder="For example, Biscoff Brownie">
+          </div>
+          <div>
+            <label for="itemDessertType">Dessert type (optional)</label>
+            <select id="itemDessertType"></select>
+            <p class="note">Choose a dessert type to place this item inside a menu section. Choose Standalone item if it should appear on the menu by itself, without a category.</p>
+          </div>
+          <div>
+            <label for="itemPrice">Full price per item in INR</label>
+            <input id="itemPrice" type="number" min="0" step="1" placeholder="For example, 229">
+          </div>
+          <div>
+            <label for="itemImage">Item photo</label>
+            <input id="itemImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+            <p class="note">Optional. JPG, PNG, WEBP or GIF, maximum 3 MB. The image is saved in your GitHub images folder.</p>
+            <img id="imagePreview" class="image-preview hidden" alt="Selected item preview">
+          </div>
+        </div>
+        <label for="itemDescription">Description</label>
+        <textarea id="itemDescription" placeholder="Write a short item description"></textarea>
+        <label class="checkbox-line"><input type="checkbox" id="itemActive" checked> Show this item on the website</label>
+        <div class="form-actions">
+          <button type="submit" class="primary">Save item</button>
+          <button type="button" class="secondary" onclick="clearItemForm()">Clear form</button>
+        </div>
+        <p id="itemMessage" class="note" aria-live="polite"></p>
+        </form>
+        <h2 style="margin-top:30px;">Current items</h2>
+        <div id="itemList"></div>
+      </section>
+
+      <!-- 7. ADD AND EDIT DESSERT TYPES -->
+      <section class="panel hidden" id="typesView">
+        <form id="typeForm" onsubmit="event.preventDefault(); saveDessertType();">
+        <h2 id="typeFormTitle">Add dessert type</h2>
+        <p class="note">A dessert type is a main menu section such as Brownies, Cookies, Drinks or Cheesecakes. Items can also be added as standalone products without a dessert type.</p>
+        <input type="hidden" id="dessertTypeId">
+        <div class="grid">
+          <div>
+            <label for="typeName">Dessert type name</label>
+            <input id="typeName" placeholder="For example, Cheesecakes">
+          </div>
+          <div>
+            <label for="typeOrderMode">How customers order from this section</label>
+            <select id="typeOrderMode" onchange="toggleBoxSizesField()">
+              <option value="individual">Individual items</option>
+              <option value="box">Build your own box</option>
+            </select>
+          </div>
+        </div>
+        <div id="boxSizesField" class="hidden">
+          <label for="typeBoxSizes">Available box sizes</label>
+          <input id="typeBoxSizes" placeholder="For example, 4, 6, 9">
+          <p class="note">Enter numbers separated by commas. Customers will choose one of these sizes and then select an item for every piece.</p>
+        </div>
+        <label class="checkbox-line"><input type="checkbox" id="typeActive" checked> Show this dessert type on the website</label>
+        <div class="form-actions">
+          <button type="submit" class="primary">Save dessert type</button>
+          <button type="button" class="secondary" onclick="clearTypeForm()">Clear form</button>
+        </div>
+        <p id="typeMessage" class="note" aria-live="polite"></p>
+        </form>
+        <h2 style="margin-top:30px;">Current dessert types</h2>
+        <div id="typeList"></div>
+        <div class="panel" style="margin-top:28px;">
+          <h2>Menu section order</h2>
+          <p class="note">Use the arrows to decide the order in which menu sections appear on the customer website. Standalone Items can also be moved.</p>
+          <div id="menuOrderList"></div>
+          <p id="menuOrderMessage" class="note" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <!-- 8. CUSTOMER ORDERS -->
+      <section class="panel hidden" id="ordersView">
+        <div class="row">
+          <div>
+            <h2>Customer orders</h2>
+            <p class="note">Orders are recorded when the customer clicks Continue to WhatsApp. Confirm that the customer sent the WhatsApp message before treating the order as confirmed.</p>
+          </div>
+          <button class="secondary" onclick="loadOrders()">Refresh orders</button>
+        </div>
+        <div id="orderList"></div>
+      </section>
+    </section>
+  </div>
+
+  <script>
+    // =====================================================================
+    // 9. ADMIN SETTINGS AND PAGE STATE
+    // =====================================================================
+    const API_URL = "/.netlify/functions/api";
+    let adminPassword = "";
+    let dessertTypes = [];
+    let items = [];
+    let menuOrder = [];
+    let selectedImage = null;
+
+    function element(id) { return document.getElementById(id); }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
+    }
+
+    function formatMoney(value) { return Number(value || 0).toLocaleString("en-IN"); }
+
+    function showMessage(id, text, type = "normal") {
+      const target = element(id);
+      target.textContent = text;
+      target.className = type === "error" ? "note error-message" : type === "success" ? "note success-message" : "note";
+    }
+
+    // =====================================================================
+    // 10. API REQUEST HELPER
+    // Adds the admin password to every protected request.
+    // =====================================================================
+    async function callApi(action, options = {}) {
+      const requestOptions = {
+        method: options.method || "GET",
+        headers: {
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(adminPassword ? { "x-admin-password": adminPassword } : {})
+        }
+      };
+      if (options.body) requestOptions.body = JSON.stringify(options.body);
+      const response = await fetch(`${API_URL}?action=${encodeURIComponent(action)}${options.query || ""}`, requestOptions);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Request failed.");
+      return result;
+    }
+
+    // =====================================================================
+    // 11. LOGIN AND LOGOUT
+    // =====================================================================
+    async function login() {
+      const password = element("password").value;
+      try {
+        const result = await callApi("login", { method: "POST", body: { password } });
+        if (!result.ok) throw new Error("Incorrect password.");
+        adminPassword = password;
+        element("loginPanel").classList.add("hidden");
+        element("dashboard").classList.remove("hidden");
+        await loadCatalogue();
+        await loadOrders();
+      } catch (error) {
+        showMessage("loginMessage", error.message, "error");
+      }
+    }
+
+    function logout() {
+      adminPassword = "";
+      dessertTypes = [];
+      items = [];
+      menuOrder = [];
+      selectedImage = null;
+      element("dashboard").classList.add("hidden");
+      element("loginPanel").classList.remove("hidden");
+      element("password").value = "";
+    }
+
+    // =====================================================================
+    // 12. DASHBOARD TAB SWITCHING
+    // =====================================================================
+    function showTab(tabName) {
+      const views = ["items", "types", "orders"];
+      for (const name of views) {
+        element(`${name}View`).classList.toggle("hidden", name !== tabName);
+        const button = element(`${name}Tab`);
+        button.className = name === tabName ? "primary tab active" : "secondary tab";
+      }
+      if (tabName === "orders") loadOrders();
+    }
+
+    // =====================================================================
+    // 13. LOAD THE ADMIN CATALOGUE
+    // =====================================================================
+    async function loadCatalogue() {
+      const result = await callApi("catalogue");
+      dessertTypes = result.dessertTypes || [];
+      items = result.items || [];
+      menuOrder = result.menuOrder || [];
+      populateDessertTypeDropdown();
+      renderItems();
+      renderDessertTypes();
+      renderMenuOrder();
+    }
+
+    function populateDessertTypeDropdown(selectedId = "") {
+      const activeTypes = dessertTypes.filter(type => type.active);
+      const standaloneOption = `<option value="" ${selectedId ? "" : "selected"}>Standalone item (no dessert type)</option>`;
+      const typeOptions = activeTypes.map(type =>
+        `<option value="${escapeHtml(type.id)}" ${type.id === selectedId ? "selected" : ""}>${escapeHtml(type.name)}</option>`
+      ).join("");
+      element("itemDessertType").innerHTML = standaloneOption + typeOptions;
+    }
+
+    // =====================================================================
+    // 14. ADD, EDIT AND DELETE ITEMS
+    // Items have their own full price. No extra charge is added to a base price.
+    // =====================================================================
+    function renderItems() {
+      const target = element("itemList");
+      if (!items.length) {
+        target.innerHTML = '<p class="note">No items have been added yet.</p>';
+        return;
+      }
+      target.innerHTML = items.map(item => {
+        const type = dessertTypes.find(entry => entry.id === item.dessertTypeId);
+        const placement = item.dessertTypeId ? (type?.name || "Unassigned type") : "Standalone item";
+        return `<div class="row">
+          <div><strong>${escapeHtml(item.name)}</strong>
+            <div class="note">${escapeHtml(placement)} | INR ${formatMoney(item.price)} each | ${item.active ? "Visible" : "Hidden"}</div>
+            ${item.description ? `<div class="note">${escapeHtml(item.description)}</div>` : ""}
+          </div>
+          <div class="row-actions">
+            <button class="secondary" onclick="editItem('${escapeHtml(item.id)}')">Edit</button>
+            <button class="danger" onclick="deleteItem('${escapeHtml(item.id)}')">Delete</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    function editItem(itemId) {
+      const item = items.find(entry => entry.id === itemId);
+      if (!item) return;
+      element("itemId").value = item.id;
+      element("itemName").value = item.name;
+      populateDessertTypeDropdown(item.dessertTypeId);
+      element("itemPrice").value = item.price;
+      element("itemDescription").value = item.description || "";
+      element("itemActive").checked = item.active;
+      element("itemImage").value = "";
+      selectedImage = null;
+      if (item.imageUrl) {
+        element("imagePreview").src = item.imageUrl;
+        element("imagePreview").classList.remove("hidden");
+      } else {
+        element("imagePreview").classList.add("hidden");
+      }
+      element("itemFormTitle").textContent = "Edit item";
+      showTab("items");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function clearItemForm() {
+      ["itemId", "itemName", "itemPrice", "itemDescription"].forEach(id => { element(id).value = ""; });
+      element("itemActive").checked = true;
+      element("itemImage").value = "";
+      element("imagePreview").classList.add("hidden");
+      selectedImage = null;
+      element("itemFormTitle").textContent = "Add item";
+      populateDessertTypeDropdown();
+    }
+
+    element("itemImage").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      selectedImage = null;
+      if (!file) { element("imagePreview").classList.add("hidden"); return; }
+      if (file.size > 3 * 1024 * 1024) {
+        showMessage("itemMessage", "Image must be 3 MB or smaller.", "error");
+        event.target.value = "";
+        return;
+      }
+      const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      if (!allowedTypes.includes(file.type)) {
+        showMessage("itemMessage", "Choose a JPG, PNG, WEBP or GIF image.", "error");
+        event.target.value = "";
+        return;
+      }
+      const buffer = await file.arrayBuffer();
+      let binary = "";
+      new Uint8Array(buffer).forEach(byte => { binary += String.fromCharCode(byte); });
+      selectedImage = { name: file.name, mimeType: file.type, base64: btoa(binary) };
+      element("imagePreview").src = URL.createObjectURL(file);
+      element("imagePreview").classList.remove("hidden");
+    });
+
+    async function saveItem() {
+      showMessage("itemMessage", "Saving item...");
+      const item = {
+        id: element("itemId").value || undefined,
+        name: element("itemName").value.trim(),
+        dessertTypeId: element("itemDessertType").value,
+        price: element("itemPrice").value,
+        description: element("itemDescription").value.trim(),
+        active: element("itemActive").checked,
+        image: selectedImage
+      };
+      try {
+        await callApi("items", { method: "POST", body: item });
+        showMessage("itemMessage", "Item saved successfully.", "success");
+        clearItemForm();
+        await loadCatalogue();
+      } catch (error) {
+        showMessage("itemMessage", error.message, "error");
+      }
+    }
+
+    async function deleteItem(itemId) {
+      if (!confirm("Delete this item? It will no longer be available for new orders.")) return;
+      try {
+        await callApi("items", { method: "DELETE", query: `&id=${encodeURIComponent(itemId)}` });
+        await loadCatalogue();
+      } catch (error) { alert(error.message); }
+    }
+
+    // =====================================================================
+    // 15. ADD, EDIT AND DELETE DESSERT TYPES
+    // Box types need allowed sizes. Individual types are used for drinks,
+    // pastries and other products that customers add by quantity.
+    // =====================================================================
+    function toggleBoxSizesField() {
+      element("boxSizesField").classList.toggle("hidden", element("typeOrderMode").value !== "box");
+    }
+
+    function renderDessertTypes() {
+      const target = element("typeList");
+      if (!dessertTypes.length) {
+        target.innerHTML = '<p class="note">No dessert types have been added yet.</p>';
+        return;
+      }
+      target.innerHTML = dessertTypes.map(type => {
+        const mode = type.orderMode === "box"
+          ? `Build your own box | Sizes: ${(type.boxSizes || []).join(", ")}`
+          : "Individual items";
+        return `<div class="row">
+          <div><strong>${escapeHtml(type.name)}</strong><div class="note">${mode} | ${type.active ? "Visible" : "Hidden"}</div></div>
+          <div class="row-actions"><button class="secondary" onclick="editDessertType('${escapeHtml(type.id)}')">Edit</button><button class="danger" onclick="deleteDessertType('${escapeHtml(type.id)}')">Delete</button></div>
+        </div>`;
+      }).join("");
+    }
+
+    function renderMenuOrder() {
+      const target = element("menuOrderList");
+      const validOrder = menuOrder.filter(id => id === "__standalone__" || dessertTypes.some(type => type.id === id));
+      const normalized = [...validOrder];
+      for (const type of dessertTypes) if (!normalized.includes(type.id)) normalized.push(type.id);
+      if (!normalized.includes("__standalone__")) normalized.push("__standalone__");
+      menuOrder = normalized;
+      if (!menuOrder.length) {
+        target.innerHTML = '<p class="note">Add a dessert type to arrange your menu.</p>';
+        return;
+      }
+      target.innerHTML = menuOrder.map((id, index) => {
+        const label = id === "__standalone__" ? "Standalone Items" : (dessertTypes.find(type => type.id === id)?.name || "Menu section");
+        return `<div class="row">
+          <div><strong>${index + 1}. ${escapeHtml(label)}</strong><div class="note">Customer website display position</div></div>
+          <div class="row-actions">
+            <button type="button" class="secondary" onclick="moveMenuSection(${index}, -1)" ${index === 0 ? "disabled" : ""} aria-label="Move ${escapeHtml(label)} up">Move up</button>
+            <button type="button" class="secondary" onclick="moveMenuSection(${index}, 1)" ${index === menuOrder.length - 1 ? "disabled" : ""} aria-label="Move ${escapeHtml(label)} down">Move down</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    async function moveMenuSection(index, direction) {
+      const next = [...menuOrder];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= next.length) return;
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      try {
+        const result = await callApi("menu-order", { method: "POST", body: { menuOrder: next } });
+        menuOrder = result.menuOrder || next;
+        renderMenuOrder();
+        showMessage("menuOrderMessage", "Menu order saved. The customer website will show this order.", "success");
+      } catch (error) {
+        showMessage("menuOrderMessage", error.message, "error");
+      }
+    }
+
+    function editDessertType(typeId) {
+      const type = dessertTypes.find(entry => entry.id === typeId);
+      if (!type) return;
+      element("dessertTypeId").value = type.id;
+      element("typeName").value = type.name;
+      element("typeOrderMode").value = type.orderMode;
+      element("typeBoxSizes").value = (type.boxSizes || []).join(", ");
+      element("typeActive").checked = type.active;
+      element("typeFormTitle").textContent = "Edit dessert type";
+      toggleBoxSizesField();
+      showTab("types");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function clearTypeForm() {
+      element("dessertTypeId").value = "";
+      element("typeName").value = "";
+      element("typeOrderMode").value = "individual";
+      element("typeBoxSizes").value = "";
+      element("typeActive").checked = true;
+      element("typeFormTitle").textContent = "Add dessert type";
+      toggleBoxSizesField();
+    }
+
+    async function saveDessertType() {
+      showMessage("typeMessage", "Saving dessert type...");
+      const type = {
+        id: element("dessertTypeId").value || undefined,
+        name: element("typeName").value.trim(),
+        orderMode: element("typeOrderMode").value,
+        boxSizes: element("typeBoxSizes").value,
+        active: element("typeActive").checked
+      };
+      try {
+        await callApi("dessert-types", { method: "POST", body: type });
+        showMessage("typeMessage", "Dessert type saved successfully.", "success");
+        clearTypeForm();
+        await loadCatalogue();
+      } catch (error) { showMessage("typeMessage", error.message, "error"); }
+    }
+
+    async function deleteDessertType(typeId) {
+      if (!confirm("Delete this dessert type? It must not contain any items.")) return;
+      try {
+        await callApi("dessert-types", { method: "DELETE", query: `&id=${encodeURIComponent(typeId)}` });
+        await loadCatalogue();
+      } catch (error) { alert(error.message); }
+    }
+
+    // =====================================================================
+    // 16. VIEW AND UPDATE ORDERS
+    // The backend groups the separate spreadsheet item rows into one card.
+    // =====================================================================
+    async function loadOrders() {
+      const target = element("orderList");
+      target.innerHTML = '<p class="note">Loading orders...</p>';
+      try {
+        const result = await callApi("orders");
+        const orders = result.orders || [];
+        if (!orders.length) { target.innerHTML = '<p class="note">No orders have been recorded yet.</p>'; return; }
+        const allowedStatuses = ["Pending WhatsApp confirmation", "Confirmed", "Preparing", "Out for delivery", "Delivered", "Cancelled"];
+        target.innerHTML = orders.map(order => `
+          <article class="order">
+            <div class="order-head"><strong>Order ${escapeHtml(order.orderId)}</strong><strong>INR ${formatMoney(order.subtotal)}</strong></div>
+            <p><strong>${escapeHtml(order.customerName)}</strong> | ${escapeHtml(order.phone)}<br>
+              Fulfilment: ${order.fulfilmentType === "pickup" ? "Pickup" : "Delivery (additional charges apply)"}<br>
+              ${order.fulfilmentType === "pickup" ? "No delivery address required" : `Address: ${escapeHtml(order.address)}`}<br>
+              ${order.fulfilmentType === "pickup" ? "Pickup" : "Delivery"}: ${escapeHtml(order.deliveryDate)} | ${escapeHtml(order.timeSlot)}</p>
+            <table class="line-table"><thead><tr><th>Item</th><th>Flavour</th><th>Rate</th><th>Qty</th><th>Line total</th></tr></thead>
+              <tbody>${order.lines.map(line => `<tr><td>${escapeHtml(line.item)}</td><td>${escapeHtml(line.flavour || "-")}</td><td>INR ${formatMoney(line.rate)}</td><td>${line.quantity}</td><td>INR ${formatMoney(line.itemTotal)}</td></tr>`).join("")}</tbody>
+            </table>
+            <p><strong>Order subtotal: INR ${formatMoney(order.subtotal)}</strong></p>
+            <div class="grid"><div><label for="status-${escapeHtml(order.orderId)}">Status</label><select id="status-${escapeHtml(order.orderId)}">${allowedStatuses.map(status => `<option ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></div><div style="align-self:end;"><button class="primary" onclick="updateOrderStatus('${escapeHtml(order.orderId)}')">Update status</button></div></div>
+            <p class="note">Created: ${escapeHtml(order.createdAt)}</p>
+          </article>
+        `).join("");
+      } catch (error) { target.innerHTML = `<p class="note error-message">${escapeHtml(error.message)}</p>`; }
+    }
+
+    async function updateOrderStatus(orderId) {
+      try {
+        await callApi("order-status", { method: "PATCH", body: { orderId, status: element(`status-${orderId}`).value } });
+        await loadOrders();
+      } catch (error) { alert(error.message); }
+    }
+
+    // =====================================================================
+    // 17. INITIAL ADMIN FORM STATE
+    // =====================================================================
+    toggleBoxSizesField();
+  </script>
+</body>
+</html>
