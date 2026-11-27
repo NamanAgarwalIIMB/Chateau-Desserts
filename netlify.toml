@@ -1,3 +1,4 @@
+
 # Netlify reads this file from the repository root.
 # The customer-facing website is published from /site.
 # The private backend functions are stored outside the public /site folder.
@@ -6,6 +7,7 @@
   command = "npm install"
   publish = "site"
   functions = "netlify/functions"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)site/assets/products/**'"
 
 [functions]
   node_bundler = "esbuild"
