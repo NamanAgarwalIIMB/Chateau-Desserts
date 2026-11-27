@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4ede4">
+  <meta name="description" content="Small-batch brownies, cookies and handcrafted desserts from Chateau Desserts, Surat.">
+  <title>Chateau Desserts | Made for the moment</title>
+  <style>
+    :root{
+      --paper:#f4ede4;--paper2:#eadccd;--ink:#302017;--muted:#806d5e;
+      --cocoa:#4b281c;--deep:#2b1711;--milk:#d8b99c;--line:#ddcdbd;
+      --white:#fffaf4;--shadow:0 22px 70px rgba(49,29,18,.14);
+      --serif:Georgia,"Times New Roman",serif;--sans:Arial,Helvetica,sans-serif;
+    }
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans)}
+    body.locked{overflow:hidden}button,input,select,textarea{font:inherit}button,a{cursor:pointer}a{color:inherit;text-decoration:none}
+    .announcement{background:var(--deep);color:#f5e9dc;text-align:center;padding:10px 16px;font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+    .header{height:84px;padding:0 clamp(20px,5vw,76px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(75,40,28,.12);background:var(--paper);position:relative;z-index:5}
+    .wordmark{font:28px var(--serif);letter-spacing:.015em}.wordmark small{display:block;font:9px var(--sans);letter-spacing:.34em;text-transform:uppercase;text-align:center;margin-top:3px}
+    .nav{display:flex;align-items:center;gap:34px;font-size:11px;letter-spacing:.14em;text-transform:uppercase}.nav a:hover{opacity:.6}
+    .cart-button{border:1px solid var(--cocoa);background:transparent;color:var(--cocoa);padding:12px 17px;font-size:10px;letter-spacing:.13em;text-transform:uppercase}
+    .cart-button span{display:inline-grid;place-items:center;margin-left:7px;width:19px;height:19px;border-radius:50%;background:var(--cocoa);color:white;font-size:10px}
+    .hero{min-height:590px;display:grid;grid-template-columns:1fr 1fr;background:var(--paper2)}
+    .hero-copy{padding:clamp(55px,8vw,112px) clamp(24px,7vw,104px);display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+    .eyebrow{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted);margin:0 0 22px}
+    h1,h2,h3,p{margin-top:0}.hero h1{font:clamp(48px,6.2vw,84px)/.99 var(--serif);font-weight:400;letter-spacing:-.045em;max-width:570px;margin:0 0 24px}
+    .hero-copy>p:not(.eyebrow){max-width:380px;color:#715c4d;font:15px/1.8 var(--serif);margin-bottom:34px}
+    .primary{display:inline-flex;align-items:center;justify-content:center;background:var(--cocoa);color:#fff8ef;border:1px solid var(--cocoa);padding:16px 24px;font-size:10px;letter-spacing:.17em;text-transform:uppercase;transition:.2s}
+    .primary:hover{background:var(--deep);border-color:var(--deep);transform:translateY(-1px)}
+    .hero-photo{min-height:590px;position:relative;overflow:hidden;background:linear-gradient(145deg,#9b6c4d,#43251b 65%,#25140f)}
+    .hero-photo img{width:100%;height:100%;position:absolute;inset:0;object-fit:cover}
+    .photo-placeholder{position:absolute;inset:0;display:flex;align-items:flex-end;padding:32px;color:#fff4e8;background:linear-gradient(0deg,rgba(30,15,10,.6),transparent 65%),radial-gradient(ellipse at 55% 35%,#c99a70 0%,#7a4b32 36%,#2c1811 100%)}
+    .photo-placeholder span{font:italic 19px var(--serif);letter-spacing:.03em}
+    .marquee{padding:18px 20px;background:var(--cocoa);color:#f4e7d8;text-align:center;font:italic 17px var(--serif);letter-spacing:.04em}
+    .section{padding:94px clamp(20px,6vw,88px)}.section-head{text-align:center;max-width:640px;margin:0 auto 48px}
+    .section-head h2{font:clamp(36px,4.5vw,55px)/1.05 var(--serif);font-weight:400;letter-spacing:-.035em;margin-bottom:14px}
+    .section-head p{font:14px/1.7 var(--serif);color:var(--muted);margin:0}
+    .menu-nav{display:flex;justify-content:center;flex-wrap:wrap;gap:9px;margin:0 auto 38px}
+    .menu-nav button{background:transparent;border:1px solid var(--line);color:var(--muted);padding:11px 17px;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+    .menu-nav button.active,.menu-nav button:hover{background:var(--cocoa);border-color:var(--cocoa);color:#fff8ef}
+    .menu-sections{max-width:1240px;margin:auto}.menu-section{margin:0 0 64px;scroll-margin-top:25px}
+    .menu-section-title{display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:25px}
+    .menu-section-title h3{font:34px var(--serif);font-weight:400;margin:0}.menu-section-title span{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+    .product-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+    .product-card{min-width:0}.product-image{width:100%;aspect-ratio:4/4.4;position:relative;overflow:hidden;background:linear-gradient(145deg,#d8c0a8,#9c7458)}
+    .product-image img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}.product-card:hover .product-image img{transform:scale(1.035)}
+    .image-fallback{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(145deg,#d9c2ab,#78513b);color:#f8eee3;font:italic 21px var(--serif)}
+    .product-info{padding:17px 2px 0}.product-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+    .product-top h4{font:23px var(--serif);font-weight:400;margin:0}.price{font-size:12px;color:var(--muted);white-space:nowrap}
+    .product-info p{font:13px/1.6 var(--serif);color:var(--muted);margin:8px 0 15px;min-height:21px}
+    .text-button{border:0;border-bottom:1px solid var(--cocoa);padding:0 0 5px;background:none;color:var(--cocoa);font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+    .empty-menu{border:1px dashed var(--line);padding:38px;text-align:center;color:var(--muted);font:16px var(--serif)}
+    .story{background:var(--deep);color:#f4e8db;display:grid;grid-template-columns:1fr 1fr;min-height:440px}
+    .story-image{min-height:440px;background:radial-gradient(ellipse at 55% 40%,#9c7050,#4a2a1e 62%,#24130e)}
+    .story-copy{padding:clamp(45px,7vw,90px);display:flex;flex-direction:column;justify-content:center}
+    .story-copy .eyebrow{color:#c7a98e}.story-copy h2{font:clamp(38px,4vw,55px)/1.05 var(--serif);font-weight:400;margin-bottom:20px}
+    .story-copy p{font:15px/1.85 var(--serif);color:#d5c2b0;max-width:440px;margin:0}
+    .contact{padding:75px 20px;text-align:center}.contact h2{font:42px var(--serif);font-weight:400;margin-bottom:12px}.contact p{font:14px/1.7 var(--serif);color:var(--muted)}
+    .footer{background:#21120d;color:#d9c6b5;padding:27px clamp(20px,5vw,75px);display:flex;justify-content:space-between;gap:20px;align-items:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+    .footer a{border-bottom:1px solid #8e7562;padding-bottom:3px}
+    .overlay{position:fixed;inset:0;z-index:20;background:rgba(28,15,10,.55);display:none;align-items:center;justify-content:center;padding:18px}
+    .overlay.open{display:flex}.dialog{width:min(960px,100%);max-height:min(92vh,900px);overflow:auto;background:var(--paper);box-shadow:var(--shadow);position:relative}
+    .dialog-head{display:flex;justify-content:space-between;align-items:center;padding:22px 26px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper);z-index:2}
+    .dialog-head strong{font:24px var(--serif);font-weight:400}.close{border:0;background:transparent;font-size:25px;color:var(--cocoa);padding:2px 8px}
+    .builder{padding:26px}.builder-intro{color:var(--muted);font:14px/1.6 var(--serif);margin-bottom:22px}
+    .size-row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 28px}.size-choice{border:1px solid var(--line);background:transparent;padding:12px 20px;color:var(--ink)}
+    .size-choice.selected{background:var(--cocoa);border-color:var(--cocoa);color:white}
+    .piece-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .piece{background:var(--white);border:1px solid var(--line);padding:12px;display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center}
+    .piece-thumb,.piece-thumb img{width:72px;height:72px;object-fit:cover;background:var(--paper2)}.piece-thumb{overflow:hidden;position:relative}.piece-thumb .image-fallback{font-size:14px}
+    .piece label{display:block;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+    .piece select,.checkout-form input,.checkout-form select,.checkout-form textarea{width:100%;padding:12px;border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:0}
+    .builder-bottom{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:25px;padding-top:20px;border-top:1px solid var(--line)}
+    .builder-total{font:24px var(--serif)}
+    .cart-panel{position:fixed;inset:0;z-index:30;display:none;background:rgba(28,15,10,.45);justify-content:flex-end}
+    .cart-panel.open{display:flex}.cart-drawer{width:min(510px,100%);height:100%;background:var(--paper);overflow:auto;padding:25px}
+    .cart-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:17px}
+    .cart-head h2{font:30px var(--serif);font-weight:400;margin:0}.cart-line{padding:18px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}
+    .cart-line strong{font:19px var(--serif);font-weight:400}.cart-line small{display:block;color:var(--muted);font:12px/1.6 var(--serif);margin-top:5px}
+    .remove{border:0;background:none;color:#8b5b46;text-decoration:underline;font-size:11px}
+    .cart-total{display:flex;justify-content:space-between;font:24px var(--serif);padding:22px 0}
+    .checkout-form{display:grid;gap:12px}.checkout-form label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .checkout-form .field{display:grid;gap:7px}.checkout-form textarea{min-height:78px;resize:vertical}
+    .checkout-form .hidden{display:none}.form-note{font-size:12px;line-height:1.5;color:var(--muted)}
+    .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--deep);color:#fff3e7;padding:13px 19px;font-size:12px;z-index:60;display:none;max-width:90%;text-align:center}
+    .toast.show{display:block}
+    @media(max-width:760px){
+      .header{height:72px}.nav{gap:15px}.nav a{display:none}.wordmark{font-size:24px}
+      .hero{grid-template-columns:1fr}.hero-copy{padding:65px 25px 55px}.hero-photo{min-height:390px}
+      .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}.product-top h4{font-size:19px}
+      .story{grid-template-columns:1fr}.story-image{min-height:270px}.story-copy{padding:55px 25px}
+      .section{padding:70px 20px}.piece-list{grid-template-columns:1fr}.dialog{max-height:95vh}
+      .footer{flex-direction:column;text-align:center}
+    }
+    @media(max-width:420px){.product-grid{grid-template-columns:1fr}.product-image{aspect-ratio:4/3.8}.cart-button{padding:10px 12px}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="announcement">Small-batch desserts · Made to be ordered ahead · Surat</div>
+  <header class="header">
+    <a class="wordmark" href="#" aria-label="Chateau Desserts home">Chateau Desserts<small>Handcrafted in Surat</small></a>
+    <nav class="nav" aria-label="Main navigation"><a href="#menu">The Menu</a><a href="#story">Our Story</a><a href="#contact">Contact</a></nav>
+    <button class="cart-button" id="openCart">Your Bag <span id="cartCount">0</span></button>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">A little something worth slowing down for</p>
+        <h1>Made for the<br>moments that matter.</h1>
+        <p>Thoughtful, small-batch desserts made with carefully chosen ingredients. A good day deserves a good dessert.</p>
+        <a class="primary" href="#menu">Explore the menu</a>
+      </div>
+      <div class="hero-photo" id="heroPhoto">
+        <div class="photo-placeholder"><span>Replace with your signature dessert photograph</span></div>
+        <img src="/assets/hero-desserts.jpg" alt="Chateau Desserts signature brownies and cookies" fetchpriority="high" onerror="this.style.display='none'">
+      </div>
+    </section>
+    <div class="marquee">A thoughtful treat, made in small batches · Chateau Desserts · Surat</div>
+
+    <section class="section" id="menu">
+      <div class="section-head">
+        <p class="eyebrow">The collection</p>
+        <h2>A menu worth exploring.</h2>
+        <p>Find your favourite, or put together a box to share. Every order is prepared fresh, just for you.</p>
+      </div>
+      <div class="menu-nav" id="menuNav" aria-label="Jump to menu section"></div>
+      <div class="menu-sections" id="menuSections"><div class="empty-menu">Loading the menu…</div></div>
+    </section>
+
+    <section class="story" id="story">
+      <div class="story-image" aria-label="Chocolate dessert photography placeholder"></div>
+      <div class="story-copy">
+        <p class="eyebrow">A note from our kitchen</p>
+        <h2>Good things take<br>a little patience.</h2>
+        <p>At Chateau Desserts, every recipe begins with curiosity, plenty of testing and an appreciation for the little details. We keep our menu focused, our batches small and the ingredients worth tasting.</p>
+      </div>
+    </section>
+
+    <section class="contact" id="contact">
+      <p class="eyebrow">Stay in touch</p>
+      <h2>Something sweet is just a message away.</h2>
+      <p>For menu questions and order updates, reach us on WhatsApp or Instagram.</p>
+      <a class="primary" href="https://www.instagram.com/chateau.desserts/" target="_blank" rel="noopener">Follow Chateau Desserts</a>
+    </section>
+  </main>
+
+  <footer class="footer"><span>© <span id="year"></span> Chateau Desserts · Surat, Gujarat</span><a href="https://www.instagram.com/chateau.desserts/" target="_blank" rel="noopener">@chateau.desserts</a></footer>
+
+  <div class="overlay" id="builderOverlay" role="dialog" aria-modal="true" aria-labelledby="builderTitle">
+    <div class="dialog">
+      <div class="dialog-head"><strong id="builderTitle">Build your box</strong><button class="close" data-close="builderOverlay" aria-label="Close">×</button></div>
+      <div class="builder" id="builderContent"></div>
+    </div>
+  </div>
+
+  <aside class="cart-panel" id="cartPanel" aria-label="Shopping bag">
+    <div class="cart-drawer">
+      <div class="cart-head"><h2>Your bag</h2><button class="close" id="closeCart" aria-label="Close bag">×</button></div>
+      <div id="cartItems"></div>
+      <div class="cart-total"><span>Subtotal</span><strong id="cartSubtotal">₹0</strong></div>
+      <p class="form-note">Delivery charges, if applicable, will be confirmed on WhatsApp.</p>
+      <form class="checkout-form" id="checkoutForm">
+        <div class="field"><label for="customerName">Your name</label><input id="customerName" name="customerName" autocomplete="name" required></div>
+        <div class="field"><label for="phone">Phone number</label><input id="phone" name="phone" type="tel" autocomplete="tel" required></div>
+        <div class="field"><label for="fulfilment">Pickup or delivery</label><select id="fulfilment" name="fulfilmentType"><option value="pickup">Pickup</option><option value="delivery">Delivery</option></select></div>
+        <div class="field hidden" id="addressField"><label for="address">Delivery address</label><textarea id="address" name="address" autocomplete="street-address"></textarea></div>
+        <div class="field"><label for="deliveryDate">Order date (tomorrow onwards)</label><input id="deliveryDate" name="deliveryDate" type="date" required></div>
+        <div class="field"><label for="timeSlot">Preferred time slot</label><select id="timeSlot" name="timeSlot" required><option value="">Choose a time</option><option>12:00 PM to 2:00 PM</option><option>2:00 PM to 4:00 PM</option><option>4:00 PM to 6:00 PM</option></select></div>
+        <button class="primary" type="submit">Continue to WhatsApp</button>
+        <p class="form-note">Your order details are recorded for confirmation. Your order is not confirmed until we reply on WhatsApp.</p>
+      </form>
+    </div>
+  </aside>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const API = "/.netlify/functions/api";
+  const WHATSAPP = "918980595645";
+  const state = { types: [], items: [], menuOrder: [], cart: [], activeType: null, boxSize: 0 };
+  const $ = id => document.getElementById(id);
+  const money = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const toast = msg => { $("toast").textContent = msg; $("toast").classList.add("show"); setTimeout(() => $("toast").classList.remove("show"), 2600); };
+  const safeImage = (url, name) => url ? `<img loading="lazy" src="${esc(url)}" alt="${esc(name)}" onerror="this.remove()">` : `<div class="image-fallback">${esc(name)}</div>`;
+  const today = new Date(); today.setDate(today.getDate()+1);
+  const minDate = [today.getFullYear(),String(today.getMonth()+1).padStart(2,"0"),String(today.getDate()).padStart(2,"0")].join("-");
+  $("deliveryDate").min = minDate; $("year").textContent = new Date().getFullYear();
+
+  async function api(action, options={}) {
+    const res = await fetch(`${API}?action=${encodeURIComponent(action)}`, {
+      method: options.method || "GET",
+      headers: {"Content-Type":"application/json", ...(options.headers || {})},
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+    return data;
+  }
+
+  function orderedSections() {
+    const typeMap = new Map(state.types.map(t => [t.id,t]));
+    const ids = [...state.menuOrder, ...state.types.map(t=>t.id)].filter((id,i,a)=>a.indexOf(id)===i);
+    const sections = ids.map(id => id === "__standalone__"
+      ? {id, name:"Standalone Items", orderMode:"individual", standalone:true}
+      : typeMap.get(id)).filter(Boolean);
+    if (!sections.some(s=>s.standalone)) sections.push({id:"__standalone__",name:"Standalone Items",orderMode:"individual",standalone:true});
+    return sections.map(s => ({...s, products: state.items.filter(item => s.standalone ? !item.dessertTypeId : item.dessertTypeId===s.id)})).filter(s=>s.products.length);
+  }
+
+  function renderMenu() {
+    const sections = orderedSections();
+    if (!sections.length) {
+      $("menuNav").innerHTML = "";
+      $("menuSections").innerHTML = `<div class="empty-menu">Our menu is being prepared. Please check back shortly or message us on Instagram.</div>`;
+      return;
+    }
+    $("menuNav").innerHTML = sections.map(s=>`<button data-jump="${esc(s.id)}">${esc(s.name)}</button>`).join("");
+    $("menuSections").innerHTML = sections.map(s => `
+      <section class="menu-section" id="section-${esc(s.id)}">
+        <div class="menu-section-title"><h3>${esc(s.name)}</h3><span>${s.orderMode==="box"?"Build your box":"Made in small batches"}</span></div>
+        <div class="product-grid">${s.products.map(item => `
+          <article class="product-card">
+            <div class="product-image">${safeImage(item.imageUrl,item.name)}</div>
+            <div class="product-info">
+              <div class="product-top"><h4>${esc(item.name)}</h4><span class="price">${money(item.price)}</span></div>
+              <p>${esc(item.description || (s.orderMode==="box" ? "Choose this flavour when building your box." : "A little something made in our kitchen."))}</p>
+              <button class="text-button" data-add="${esc(item.id)}" data-type="${esc(s.id)}">${s.orderMode==="box"?"Build a box":"Add to bag"}</button>
+            </div>
+          </article>`).join("")}</div>
+      </section>`).join("");
+    $("menuNav").querySelectorAll("[data-jump]").forEach(b=>b.addEventListener("click",()=>document.getElementById("section-"+b.dataset.jump)?.scrollIntoView({behavior:"smooth"})));
+    $("menuSections").querySelectorAll("[data-add]").forEach(b=>b.addEventListener("click",()=> {
+      const type = state.types.find(t=>t.id===b.dataset.type);
+      if (type && type.orderMode==="box") openBuilder(type);
+      else addIndividual(b.dataset.add);
+    }));
+  }
+
+  function openBuilder(type) {
+    state.activeType=type; state.boxSize=0;
+    $("builderTitle").textContent = `Build your ${type.name.toLowerCase()} box`;
+    const sizes = type.boxSizes || [];
+    $("builderContent").innerHTML = `
+      <p class="builder-intro">Choose a box size, then select a flavour for each piece. You can create more than one box by adding another separately.</p>
+      <p class="eyebrow">01 · Choose your box size</p>
+      <div class="size-row">${sizes.map(n=>`<button class="size-choice" data-size="${n}">${n} pieces</button>`).join("")}</div>
+      <div id="pieceSelection"></div>
+      <div class="builder-bottom"><div class="builder-total" id="builderTotal">Choose a size</div><button class="primary" id="addBox" disabled>Add box to bag</button></div>`;
+    $("builderContent").querySelectorAll("[data-size]").forEach(btn=>btn.addEventListener("click",()=>{
+      state.boxSize=Number(btn.dataset.size);
+      $("builderContent").querySelectorAll("[data-size]").forEach(x=>x.classList.toggle("selected",x===btn));
+      renderPieceChoices();
+    }));
+    openOverlay("builderOverlay");
+  }
+
+  function renderPieceChoices() {
+    const type=state.activeType, products=state.items.filter(i=>i.dessertTypeId===type.id);
+    $("pieceSelection").innerHTML = `<p class="eyebrow">02 · Choose each flavour</p><div class="piece-list">${Array.from({length:state.boxSize},(_,i)=>`
+      <div class="piece"><div class="piece-thumb" data-piece-thumb>${products[0]?.imageUrl ? `<img src="${esc(products[0].imageUrl)}" alt="" onerror="this.style.visibility='hidden'">` : `<div class="image-fallback">#${i+1}</div>`}</div>
+        <div><label>Piece ${i+1}</label><select class="piece-select" aria-label="Choose flavour for piece ${i+1}"><option value="">Choose a flavour</option>${products.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${money(p.price)}</option>`).join("")}</select></div>
+      </div>`).join("")}</div>`;
+    const update=()=>{
+      const selected=[...$("pieceSelection").querySelectorAll("select")].map(s=>s.value);
+      const total=selected.reduce((sum,id)=>sum+(state.items.find(i=>i.id===id)?.price||0),0);
+      $("builderTotal").textContent=selected.every(Boolean)?money(total):`${selected.filter(Boolean).length} of ${state.boxSize} selected`;
+      $("addBox").disabled=!selected.every(Boolean);
+    };
+    $("pieceSelection").querySelectorAll("select").forEach(s=>s.addEventListener("change",()=>{
+      const selected=products.find(p=>p.id===s.value);
+      const thumb=s.closest(".piece").querySelector("[data-piece-thumb]");
+      if(selected?.imageUrl){thumb.innerHTML=`<img src="${esc(selected.imageUrl)}" alt="${esc(selected.name)}" onerror="this.style.visibility='hidden'">`;}
+      else {thumb.innerHTML=`<div class="image-fallback">Choose</div>`;}
+      update();
+    }));
+    $("addBox").addEventListener("click",()=>{
+      const itemIds=[...$("pieceSelection").querySelectorAll("select")].map(s=>s.value);
+      state.cart.push({kind:"box",dessertTypeId:type.id,boxSize:state.boxSize,itemIds});
+      updateCart(); closeOverlay("builderOverlay"); toast("Box added to your bag.");
+    });
+    update();
+  }
+
+  function addIndividual(itemId) {
+    const item=state.items.find(i=>i.id===itemId); if(!item)return;
+    state.cart.push({kind:"individual",dessertTypeId:"",itemId,quantity:1});
+    updateCart(); toast("Added to your bag.");
+  }
+  function cartEntryTotal(entry) {
+    if(entry.kind==="individual"){const item=state.items.find(i=>i.id===entry.itemId);return (item?.price||0)*entry.quantity;}
+    return entry.itemIds.reduce((sum,id)=>sum+(state.items.find(i=>i.id===id)?.price||0),0);
+  }
+  function updateCart() {
+    $("cartCount").textContent=state.cart.length;
+    $("cartItems").innerHTML=state.cart.length?state.cart.map((entry,index)=>{
+      if(entry.kind==="individual"){const item=state.items.find(i=>i.id===entry.itemId);return `<div class="cart-line"><div><strong>${esc(item?.name||"Item")}</strong><small>Quantity: ${entry.quantity}</small></div><div>${money(cartEntryTotal(entry))}<br><button class="remove" data-remove="${index}">Remove</button></div></div>`;}
+      const type=state.types.find(t=>t.id===entry.dessertTypeId);
+      const names=entry.itemIds.map(id=>state.items.find(i=>i.id===id)?.name||"Flavour").join(", ");
+      return `<div class="cart-line"><div><strong>${esc(type?.name||"Dessert")} box · ${entry.boxSize} pieces</strong><small>${esc(names)}</small></div><div>${money(cartEntryTotal(entry))}<br><button class="remove" data-remove="${index}">Remove</button></div></div>`;
+    }).join(""):`<div class="empty-menu">Your bag is waiting for something sweet.</div>`;
+    const total=state.cart.reduce((sum,e)=>sum+cartEntryTotal(e),0);$("cartSubtotal").textContent=money(total);
+    $("cartItems").querySelectorAll("[data-remove]").forEach(b=>b.addEventListener("click",()=>{state.cart.splice(Number(b.dataset.remove),1);updateCart();}));
+  }
+  function openOverlay(id){$(id).classList.add("open");document.body.classList.add("locked");}
+  function closeOverlay(id){$(id).classList.remove("open");if(!$("builderOverlay").classList.contains("open"))document.body.classList.remove("locked");}
+  $("builderOverlay").addEventListener("click",e=>{if(e.target===$("builderOverlay"))closeOverlay("builderOverlay");});
+  document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>closeOverlay(b.dataset.close)));
+  $("openCart").addEventListener("click",()=>{$("cartPanel").classList.add("open");document.body.classList.add("locked");});
+  $("closeCart").addEventListener("click",()=>{$("cartPanel").classList.remove("open");document.body.classList.remove("locked");});
+  $("cartPanel").addEventListener("click",e=>{if(e.target===$("cartPanel")){$("cartPanel").classList.remove("open");document.body.classList.remove("locked");}});
+  $("fulfilment").addEventListener("change",()=>{const delivery=$("fulfilment").value==="delivery";$("addressField").classList.toggle("hidden",!delivery);$("address").required=delivery;});
+
+  $("checkoutForm").addEventListener("submit",async e=>{
+    e.preventDefault();
+    if(!state.cart.length){toast("Your bag is empty.");return;}
+    const form=new FormData(e.currentTarget);
+    const payload={
+      customerName:form.get("customerName"),phone:form.get("phone"),
+      fulfilmentType:form.get("fulfilmentType"),address:form.get("address"),
+      deliveryDate:form.get("deliveryDate"),timeSlot:form.get("timeSlot"),
+      items:state.cart.map(entry=>entry.kind==="box"
+        ? {dessertTypeId:entry.dessertTypeId,boxSize:entry.boxSize,itemIds:entry.itemIds}
+        : {dessertTypeId:"",itemId:entry.itemId,quantity:entry.quantity})
+    };
+    const submit=e.currentTarget.querySelector("button[type=submit]");submit.disabled=true;submit.textContent="Preparing your order…";
+    try{
+      const order=await api("order",{method:"POST",body:payload});
+      const lines=order.items.map(item=>item.kind==="box"
+        ? `${item.name}\n${item.lines.map(l=>`  • ${l.quantity} × ${l.name} — ${money(l.rate)} each`).join("\n")}\n  Box total: ${money(item.lineTotal)}`
+        : `${item.quantity} × ${item.name} — ${money(item.rate)} each = ${money(item.lineTotal)}`).join("\n\n");
+      const msg=[
+        "Hello Chateau Desserts! I'd like to place an order.",
+        "",`Name: ${payload.customerName}`,`Phone: ${payload.phone}`,
+        `Fulfilment: ${payload.fulfilmentType==="pickup"?"Pickup":"Delivery"}`,
+        ...(payload.fulfilmentType==="delivery"?[`Address: ${payload.address}`]:[]),
+        `Date: ${payload.deliveryDate}`,`Time: ${payload.timeSlot}`,"",
+        "ORDER DETAILS",lines,"",`Subtotal: ${money(order.subtotal)}`,
+        "Please confirm availability and delivery charges (if applicable)."
+      ].join("\n");
+      window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,"_blank","noopener");
+      state.cart=[];updateCart();e.currentTarget.reset();$("addressField").classList.add("hidden");
+      $("cartPanel").classList.remove("open");document.body.classList.remove("locked");
+      toast("Order details saved. Please send the WhatsApp message to complete confirmation.");
+    }catch(err){toast(err.message);}
+    finally{submit.disabled=false;submit.textContent="Continue to WhatsApp";}
+  });
+
+  async function init(){
+    try{
+      const menu=await api("menu");
+      state.types=menu.dessertTypes||[];state.items=menu.items||[];state.menuOrder=menu.menuOrder||[];
+      renderMenu();
+    }catch(err){
+      $("menuSections").innerHTML=`<div class="empty-menu">The menu could not load just now. Please refresh in a moment. <br><small>${esc(err.message)}</small></div>`;
+    }
+  }
+  init();
+})();
+</script>
+</body>
+</html>

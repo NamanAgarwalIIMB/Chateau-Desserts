@@ -1,0 +1,14 @@
+# Netlify publishes the static site and runs the private API function.
+[build]
+  command = "npm install"
+  publish = "site"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Keep the API function path stable.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200

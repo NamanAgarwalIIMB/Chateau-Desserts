@@ -1,0 +1,10 @@
+{
+  "name": "chateau-desserts-clean-v1",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Clean Chateau Desserts storefront and admin portal",
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}
