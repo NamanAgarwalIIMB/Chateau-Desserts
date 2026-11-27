@@ -1,0 +1,11 @@
+# Netlify reads this file from the repository root.
+# The customer-facing website is published from /site.
+# The private backend functions are stored outside the public /site folder.
+
+[build]
+  command = "npm install"
+  publish = "site"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"

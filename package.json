@@ -1,0 +1,10 @@
+{
+  "name": "chateau-desserts-storefront",
+  "version": "11.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chateau Desserts storefront with swipeable flavour galleries and dynamic box-size selectors",
+  "dependencies": {
+    "googleapis": "^144.0.0"
+  }
+}
