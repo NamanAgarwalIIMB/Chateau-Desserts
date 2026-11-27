@@ -1,4 +1,4 @@
-# Chateau Desserts Website V10
+# Chateau Desserts Website V11
 
 This is the complete V10 website package, based on the original V9 project. It preserves the V9 storefront and admin experience and adds persistent browser caching plus Netlify CDN caching for the public menu. It includes:
 
